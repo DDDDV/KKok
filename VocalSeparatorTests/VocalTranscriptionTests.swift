@@ -60,57 +60,40 @@ final class VocalTranscriptionTests: XCTestCase {
         }
     }
 
-    func testModelStoreResolvesOnlyCompleteBundledModel() throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        let store = WhisperModelStore(rootURL: root)
-        try writeBundledModelResources(in: root)
-
-        XCTAssertThrowsError(try store.bundledResources()) { error in
-            XCTAssertEqual(error as? VocalTranscriptionError, .bundledModelUnavailable)
-        }
-
-        try writeTestManifest(in: root)
-        let resolved = try store.bundledResources()
-        XCTAssertEqual(resolved.rootURL, root)
-        XCTAssertEqual(
-            resolved.modelFolderURL,
-            root.appendingPathComponent(
-                WhisperModelStore.expectedModelFolderName,
-                isDirectory: true
-            )
-        )
-        XCTAssertEqual(
-            resolved.tokenizerFolderURL,
-            root.appendingPathComponent(
-                WhisperModelStore.tokenizerFolderName,
-                isDirectory: true
-            )
-        )
-
-        let zeroSizedFile = root.appendingPathComponent(bundledResourcePaths[0])
-        try Data().write(to: zeroSizedFile)
-        XCTAssertThrowsError(try store.bundledResources())
-        try Data([0x01]).write(to: zeroSizedFile)
-        XCTAssertNoThrow(try store.bundledResources())
-
-        let missingFile = root.appendingPathComponent(bundledResourcePaths[1])
-        try FileManager.default.removeItem(at: missingFile)
-        XCTAssertThrowsError(try store.bundledResources())
-        try Data([0x01]).write(to: missingFile)
-        XCTAssertNoThrow(try store.bundledResources())
-
-        try writeTestManifest(in: root, modelVariant: "tiny")
-        XCTAssertThrowsError(try store.bundledResources())
-    }
-
     func testCancellationSignalStopsDetachedCallbackWork() {
         let signal = TranscriptionCancellationSignal()
         XCTAssertTrue(signal.shouldContinue)
         signal.cancel()
         XCTAssertFalse(signal.shouldContinue)
+    }
+
+    @MainActor
+    func testSeparationDoesNotTranscribeUntilUserExplicitlyStartsIt() async throws {
+        let sourceURL = try makeTemporaryMP3()
+        defer {
+            try? FileManager.default.removeItem(at: sourceURL)
+            try? AudioImportStore.resetManagedStorage()
+        }
+
+        let transcriber = RecordingTranscriber(
+            result: VocalTranscript(text: "不应自动发布", languageCode: "zh")
+        )
+        let viewModel = SeparationViewModel(
+            engine: ManagedFileSeparator(),
+            transcriber: transcriber
+        )
+
+        viewModel.handleImport(.success(sourceURL))
+        await waitUntil { !viewModel.isImporting }
+        viewModel.startSeparation()
+        await waitUntil { !viewModel.isProcessing }
+
+        XCTAssertNotNil(viewModel.result)
+        XCTAssertNil(viewModel.transcript)
+        XCTAssertFalse(viewModel.hasRequestedTranscription)
+        let receivedURLs = await transcriber.receivedURLs
+        XCTAssertEqual(receivedURLs, [])
+        XCTAssertEqual(viewModel.statusText, "分离完成；人声转写为可选功能")
     }
 
     @MainActor
@@ -130,6 +113,10 @@ final class VocalTranscriptionTests: XCTestCase {
         viewModel.handleImport(.success(sourceURL))
         await waitUntil { !viewModel.isImporting }
         viewModel.startSeparation()
+        await waitUntil { !viewModel.isProcessing }
+
+        XCTAssertNil(viewModel.transcriptionErrorText)
+        viewModel.startTranscription()
         await waitUntil { !viewModel.isProcessing }
 
         let separationResult = try XCTUnwrap(viewModel.result)
@@ -157,6 +144,8 @@ final class VocalTranscriptionTests: XCTestCase {
         viewModel.handleImport(.success(sourceURL))
         await waitUntil { !viewModel.isImporting }
         viewModel.startSeparation()
+        await waitUntil { !viewModel.isProcessing }
+        viewModel.startTranscription()
         await waitUntilAsync { await transcriber.didStart }
         viewModel.cancel()
         await waitUntil { !viewModel.isProcessing }
@@ -189,6 +178,8 @@ final class VocalTranscriptionTests: XCTestCase {
         await waitUntil { !viewModel.isImporting }
         viewModel.startSeparation()
         await waitUntil { !viewModel.isProcessing }
+        viewModel.startTranscription()
+        await waitUntil { !viewModel.isProcessing }
         let separationResult = try XCTUnwrap(viewModel.result)
         XCTAssertNotNil(viewModel.transcriptionErrorText)
 
@@ -210,59 +201,6 @@ final class VocalTranscriptionTests: XCTestCase {
             .appendingPathComponent("\(UUID().uuidString).mp3")
         try Data([0x49, 0x44, 0x33]).write(to: url)
         return url
-    }
-
-    private var bundledResourcePaths: [String] {
-        let modelFolder = WhisperModelStore.expectedModelFolderName
-        let modelPaths = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { model in
-            [
-                "\(modelFolder)/\(model).mlmodelc/coremldata.bin",
-                "\(modelFolder)/\(model).mlmodelc/model.mil",
-                "\(modelFolder)/\(model).mlmodelc/weights/weight.bin"
-            ]
-        }
-        let tokenizerFolder = WhisperModelStore.tokenizerFolderName
-        return modelPaths + [
-            "\(tokenizerFolder)/config.json",
-            "\(tokenizerFolder)/tokenizer.json",
-            "\(tokenizerFolder)/tokenizer_config.json"
-        ]
-    }
-
-    private func writeBundledModelResources(in root: URL) throws {
-        for relativePath in bundledResourcePaths {
-            let fileURL = root.appendingPathComponent(relativePath)
-            try FileManager.default.createDirectory(
-                at: fileURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try Data([0x01]).write(to: fileURL)
-        }
-    }
-
-    private func writeTestManifest(
-        in root: URL,
-        modelVariant: String = WhisperVocalTranscriber.modelVariant
-    ) throws {
-        let resources = Dictionary(
-            uniqueKeysWithValues: bundledResourcePaths.map { path in
-                (path, ["size": 1, "sha256": String(repeating: "a", count: 64)] as [String: Any])
-            }
-        )
-        let manifest: [String: Any] = [
-            "version": 1,
-            "modelVariant": modelVariant,
-            "modelRevision": "model-test-revision",
-            "tokenizerRevision": "tokenizer-test-revision",
-            "modelFolder": WhisperModelStore.expectedModelFolderName,
-            "tokenizerFolder": WhisperModelStore.tokenizerFolderName,
-            "resources": resources
-        ]
-        let data = try JSONSerialization.data(withJSONObject: manifest)
-        try data.write(
-            to: root.appendingPathComponent(WhisperModelStore.manifestName),
-            options: .atomic
-        )
     }
 
     @MainActor

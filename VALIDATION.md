@@ -3,7 +3,45 @@
 验证日期：2026-09-01。环境：macOS 26.6.2 (arm64)、Xcode 26.6、iOS
 Simulator 26.5，以及 iPhone 16 Pro Max（iPhone17,2，iOS 18.7.2）。
 
-## 最终工程
+## 按需转写模型改造（当前结果）
+
+- XcodeGen 2.45.4 重新生成工程成功；资源阶段只复制
+  `MODEL_MANIFEST.json`，新模型管理器及其测试均已进入 Sources。
+- 在 iPhone 17 Pro / iOS 26.5 Simulator 上实际执行常规 XCTest：34 个通过，
+  0 失败，0 跳过；机器可读结果：
+  `/private/tmp/vocal-on-demand-tests-3.xcresult`。真机重型集成类由命令显式排除，
+  不计为跳过。
+- 测试产物枚举确认：app 中存在 5,121 字节的可信 manifest，不存在
+  `WhisperKitResources.bundle`、Whisper model folder、AudioEncoder、TextDecoder、
+  MelSpectrogram、tokenizer 或 SenseVoice 资源。`du` 显示测试宿主 app 为约
+  `327 MiB`；该数字含 XCTest 注入内容，不代表商店下载大小。
+- 使用非签名 Release Simulator 构建和示例值
+  `https://models.example.cn/whisper` 验证镜像配置链路：构建成功，最终
+  `Info.plist` 中的 `TranscriptionModelMirrorBaseURLs` 精确等于示例值；产物约
+  `304 MiB`，只含 5,121 字节 manifest，不含 Whisper 权重。示例域名只用于验证
+  build-setting 展开，没有被当作真实下载线路。
+- 生产 manifest 的 27/27 个源文件大小和 SHA-256 均匹配，总计
+  `631,107,026` 字节（约 `601.87 MiB`）。安装器测试覆盖零网络本地检查、
+  manifest 拒绝、镜像顺序与熔断、固定 revision Hugging Face 回退、大小/哈希、
+  安装后篡改、失败续试、原子发布和取消。
+- 分离与转写已经解耦：分离完成不会调用 transcriber；只有确认框中的
+  “同意并继续”会启动模型准备。测试断言未明确启动转写时 transcriber 调用数为 0。
+- `WhisperKitConfig.download` 保持 `false`；终端用户模型下载 URL 不包含 GitHub。
+
+当前尚未完成的发行验收：
+
+- `TRANSCRIPTION_MODEL_MIRROR_BASE_URLS` 默认仍为空，因为仓库没有发行方持有的
+  大陆 CDN 域名或上传凭据。正式发行前必须填入真实 HTTPS 根，并在移动、联通、
+  电信网络做约 602 MiB 冷下载；不能把固定 Hugging Face 回退当作大陆可用保证。
+- 尚未用真实 CDN 跑完整下载、断网重试、存储不足和首次 Core ML specialization。
+  最大单文件为 `421,968,768` 字节，当前只支持完整文件级重试/已完成文件复用，
+  不支持该文件的字节级断点续传；下载期间需保持 app 在前台。
+- 确认框的“暂不使用”尚无 UI 自动化；当前零下载门槛由唯一生产 UI 调用路径和
+  ViewModel 单元测试共同保证。
+- 本次没有重复执行真机端到端测试；下文真机转写结果是改造前内置模型的基线，
+  不能代替按需下载后的真实设备验收。
+
+## 改造前内置模型基线（历史记录，已被上节资源结论取代）
 
 - 面向 Simulator 的 Debug `build-for-testing` 成功；使用开发团队签名、面向连接
   真机的 Debug `build-for-testing` 也成功并已安装到上述 iPhone。
@@ -126,5 +164,7 @@ predict:   10.47 s
   bundle 纳入远端版本控制，必须配置 Git LFS 并确认构建拿到的是实际权重而非
   pointer 文件。
 
-因此，当前结论是“内置离线模型可构建，用户 MP3 在真实 iPhone 的 app 链路中可
-完成分离并把人声转为非空中文文本”，但仍不是歌词准确率、长期性能或商店发布验收。
+因此，当前代码结论是“分离默认不下载转写模型；用户明确同意后，应用才通过可配置
+镜像准备并校验固定模型，app 本身不再携带 Whisper 权重”。改造前真机记录证明模型
+链路曾可完成中文转写，但真实大陆 CDN、按需冷下载、改造后真机链路、歌词准确率、
+长期性能和商店发布仍需分别验收。

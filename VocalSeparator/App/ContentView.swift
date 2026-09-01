@@ -6,6 +6,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel = SeparationViewModel()
     @State private var isShowingLegal = false
+    @State private var isConfirmingTranscription = false
 
     private let mp3Type = UTType(filenameExtension: "mp3") ?? .audio
 
@@ -67,6 +68,22 @@ struct ContentView: View {
                 title: Text(alert.title),
                 message: Text(alert.message),
                 dismissButton: .default(Text("好"))
+            )
+        }
+        .confirmationDialog(
+            "启用人声转写？",
+            isPresented: $isConfirmingTranscription,
+            titleVisibility: .visible
+        ) {
+            Button("同意并继续") {
+                viewModel.startTranscription()
+            }
+            Button("暂不使用", role: .cancel) {}
+        } message: {
+            Text(
+                "首次使用需要下载约 602 MiB 的转写模型，建议连接 Wi‑Fi。"
+                    + "下载期间请保持应用在前台。"
+                    + "只有模型文件会联网下载；所选音频和识别过程始终留在本机。"
             )
         }
         .sheet(isPresented: $isShowingLegal) {
@@ -243,9 +260,14 @@ struct ContentView: View {
             TranscriptResultCard(
                 transcript: viewModel.transcript,
                 errorText: viewModel.transcriptionErrorText,
+                hasRequestedTranscription: viewModel.hasRequestedTranscription,
                 isTranscribing: viewModel.isTranscribing,
+                modelDownloadProgress: viewModel.modelDownloadProgress,
                 statusText: viewModel.statusText,
                 canRetry: viewModel.canRetryTranscription,
+                requestTranscription: {
+                    isConfirmingTranscription = true
+                },
                 retry: viewModel.retryTranscription,
                 cancel: viewModel.cancel
             )
@@ -255,7 +277,7 @@ struct ContentView: View {
 
     private var privacyNote: some View {
         Label {
-            Text("音频和转写都只在本机处理，不会上传；转写模型已随应用内置，无需首次联网下载。请及时保存结果，并在处理期间保持前台。")
+            Text("音频和转写都只在本机处理，不会上传。只有在您明确同意使用人声转写后，应用才会联网下载模型；分离功能本身无需该模型。")
         } icon: {
             Image(systemName: "lock.shield")
         }
@@ -269,9 +291,12 @@ struct ContentView: View {
 private struct TranscriptResultCard: View {
     let transcript: VocalTranscript?
     let errorText: String?
+    let hasRequestedTranscription: Bool
     let isTranscribing: Bool
+    let modelDownloadProgress: Double?
     let statusText: String
     let canRetry: Bool
+    let requestTranscription: () -> Void
     let retry: () -> Void
     let cancel: () -> Void
 
@@ -289,15 +314,27 @@ private struct TranscriptResultCard: View {
             }
 
             if isTranscribing {
-                HStack(spacing: 12) {
-                    ProgressView()
-                        .tint(.pink)
-                    Text(statusText)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.66))
-                    Spacer(minLength: 8)
-                    Button("取消", role: .destructive, action: cancel)
-                        .font(.caption.weight(.semibold))
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        if modelDownloadProgress == nil {
+                            ProgressView()
+                                .tint(.pink)
+                        }
+                        Text(statusText)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.66))
+                        Spacer(minLength: 8)
+                        Button("取消", role: .destructive, action: cancel)
+                            .font(.caption.weight(.semibold))
+                    }
+
+                    if let modelDownloadProgress {
+                        ProgressView(value: modelDownloadProgress)
+                            .tint(.pink)
+                        Text(modelDownloadProgress, format: .percent.precision(.fractionLength(0)))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
                 }
             } else if let transcript {
                 Text(transcript.text)
@@ -319,13 +356,24 @@ private struct TranscriptResultCard: View {
                     }
                     .buttonStyle(SecondaryActionButtonStyle())
                 }
-            } else {
-                Text(errorText ?? "转写尚未完成，可以重新开始。")
+            } else if hasRequestedTranscription {
+                Text(errorText ?? "转写已停止，可以使用已分离的人声重新开始。")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.66))
 
                 Button(action: retry) {
                     Label("重试转写", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(SecondaryActionButtonStyle())
+                .disabled(!canRetry)
+            } else {
+                Text("可选功能。首次使用时会在您确认后下载约 602 MiB 模型，完成后可离线转写。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.66))
+
+                Button(action: requestTranscription) {
+                    Label("启用人声转写", systemImage: "text.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SecondaryActionButtonStyle())

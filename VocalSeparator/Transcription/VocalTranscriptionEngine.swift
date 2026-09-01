@@ -7,7 +7,9 @@ struct VocalTranscript: Equatable, Sendable {
 }
 
 enum VocalTranscriptionStage: Equatable, Sendable {
-    case checkingBundledModel
+    case checkingModel
+    case downloadingModel(Double)
+    case verifyingModel
     case prewarmingModel
     case loadingModel
     case transcribing
@@ -24,28 +26,27 @@ protocol VocalTranscribing: Sendable {
 
 enum VocalTranscriptionError: LocalizedError, Equatable {
     case noRecognizableSpeech
-    case bundledModelUnavailable
 
     var errorDescription: String? {
         switch self {
         case .noRecognizableSpeech:
             return "没有从分离后的人声中识别出可用文本。"
-        case .bundledModelUnavailable:
-            return "应用内置的转写模型缺失或不完整，请重新安装应用。"
         }
     }
 }
 
 actor WhisperVocalTranscriber: VocalTranscribing {
-    /// Argmax recommends this compressed multilingual model for maximum accuracy
-    /// across iOS and macOS. The app ships it as a signed bundle resource.
-    static let modelVariant = "large-v3-v20240930_626MB"
+    static let modelVariant = TranscriptionModelManager.expectedModelVariant
 
-    private let modelStore: WhisperModelStore
+    private let resourceProvider: any WhisperModelResourceProviding
     private var pipeline: WhisperKit?
+    private var pipelineResourcesRootURL: URL?
 
-    init(modelStore: WhisperModelStore = WhisperModelStore()) {
-        self.modelStore = modelStore
+    init(
+        resourceProvider: any WhisperModelResourceProviding =
+            TranscriptionModelManager()
+    ) {
+        self.resourceProvider = resourceProvider
     }
 
     func transcribe(
@@ -94,7 +95,19 @@ actor WhisperVocalTranscriber: VocalTranscribing {
     private func preparedPipeline(
         progress: @escaping VocalTranscriptionProgressHandler
     ) async throws -> WhisperKit {
-        if let pipeline {
+        await progress(.checkingModel)
+        let resources = try await resourceProvider.prepareResources { update in
+            switch update {
+            case .downloading(let fraction):
+                await progress(.downloadingModel(fraction))
+            case .verifying:
+                await progress(.verifyingModel)
+            }
+        }
+        try Task.checkCancellation()
+
+        if let pipeline,
+           pipelineResourcesRootURL == resources.rootURL {
             do {
                 await progress(.loadingModel)
                 try await pipeline.loadModels()
@@ -104,14 +117,17 @@ actor WhisperVocalTranscriber: VocalTranscribing {
                 await pipeline.unloadModels()
                 if !(error is CancellationError) {
                     self.pipeline = nil
+                    pipelineResourcesRootURL = nil
                 }
                 throw error
             }
         }
 
-        await progress(.checkingBundledModel)
-        let resources = try modelStore.bundledResources()
-        try Task.checkCancellation()
+        if let pipeline {
+            await pipeline.unloadModels()
+            self.pipeline = nil
+            pipelineResourcesRootURL = nil
+        }
 
         let pipeline = try await WhisperKit(
             WhisperKitConfig(
@@ -138,107 +154,8 @@ actor WhisperVocalTranscriber: VocalTranscribing {
         }
 
         self.pipeline = pipeline
+        pipelineResourcesRootURL = resources.rootURL
         return pipeline
-    }
-}
-
-struct BundledWhisperResources: Equatable, Sendable {
-    let rootURL: URL
-    let modelFolderURL: URL
-    let tokenizerFolderURL: URL
-}
-
-struct WhisperModelStore: Sendable {
-    static let bundledFolderName = "WhisperKitResources.bundle"
-    static let expectedModelFolderName =
-        "openai_whisper-large-v3-v20240930_626MB"
-    static let tokenizerFolderName = "tokenizer"
-    static let manifestName = "MODEL_MANIFEST.json"
-    private static let requiredResourcePaths = [
-        "\(expectedModelFolderName)/MelSpectrogram.mlmodelc/coremldata.bin",
-        "\(expectedModelFolderName)/MelSpectrogram.mlmodelc/model.mil",
-        "\(expectedModelFolderName)/MelSpectrogram.mlmodelc/weights/weight.bin",
-        "\(expectedModelFolderName)/AudioEncoder.mlmodelc/coremldata.bin",
-        "\(expectedModelFolderName)/AudioEncoder.mlmodelc/model.mil",
-        "\(expectedModelFolderName)/AudioEncoder.mlmodelc/weights/weight.bin",
-        "\(expectedModelFolderName)/TextDecoder.mlmodelc/coremldata.bin",
-        "\(expectedModelFolderName)/TextDecoder.mlmodelc/model.mil",
-        "\(expectedModelFolderName)/TextDecoder.mlmodelc/weights/weight.bin",
-        "\(tokenizerFolderName)/config.json",
-        "\(tokenizerFolderName)/tokenizer.json",
-        "\(tokenizerFolderName)/tokenizer_config.json"
-    ]
-
-    private struct Manifest: Decodable {
-        let version: Int
-        let modelVariant: String
-        let modelRevision: String
-        let tokenizerRevision: String
-        let modelFolder: String
-        let tokenizerFolder: String
-        let resources: [String: ManifestResource]
-    }
-
-    private struct ManifestResource: Decodable {
-        let size: Int64
-        let sha256: String
-    }
-
-    let rootURL: URL
-
-    init(rootURL: URL? = nil, bundle: Bundle = .main) {
-        if let rootURL {
-            self.rootURL = rootURL
-        } else {
-            let resourceRoot = bundle.resourceURL ?? bundle.bundleURL
-            self.rootURL = resourceRoot.appendingPathComponent(
-                Self.bundledFolderName,
-                isDirectory: true
-            )
-        }
-    }
-
-    func bundledResources() throws -> BundledWhisperResources {
-        let manifestURL = rootURL.appendingPathComponent(Self.manifestName)
-        guard let data = try? Data(contentsOf: manifestURL),
-              let manifest = try? JSONDecoder().decode(Manifest.self, from: data),
-              manifest.version == 1,
-              manifest.modelVariant == WhisperVocalTranscriber.modelVariant,
-              !manifest.modelRevision.isEmpty,
-              !manifest.tokenizerRevision.isEmpty,
-              manifest.modelFolder == Self.expectedModelFolderName,
-              manifest.tokenizerFolder == Self.tokenizerFolderName,
-              manifestContainsValidRequiredFiles(manifest) else {
-            throw VocalTranscriptionError.bundledModelUnavailable
-        }
-
-        return BundledWhisperResources(
-            rootURL: rootURL,
-            modelFolderURL: rootURL.appendingPathComponent(
-                Self.expectedModelFolderName,
-                isDirectory: true
-            ),
-            tokenizerFolderURL: rootURL.appendingPathComponent(
-                Self.tokenizerFolderName,
-                isDirectory: true
-            )
-        )
-    }
-
-    private func manifestContainsValidRequiredFiles(_ manifest: Manifest) -> Bool {
-        for relativePath in Self.requiredResourcePaths {
-            guard let expected = manifest.resources[relativePath],
-                  expected.size > 0,
-                  expected.sha256.count == 64,
-                  let attributes = try? FileManager.default.attributesOfItem(
-                      atPath: rootURL.appendingPathComponent(relativePath).path
-                  ),
-                  let actualSize = attributes[.size] as? NSNumber,
-                  actualSize.int64Value == expected.size else {
-                return false
-            }
-        }
-        return true
     }
 }
 

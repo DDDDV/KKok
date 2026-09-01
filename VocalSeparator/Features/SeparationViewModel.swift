@@ -16,6 +16,7 @@ final class SeparationViewModel: ObservableObject {
     @Published private(set) var transcript: VocalTranscript?
     @Published private(set) var transcriptionErrorText: String?
     @Published private(set) var transcriptionStage: VocalTranscriptionStage?
+    @Published private(set) var hasRequestedTranscription = false
     @Published private(set) var isImporting = false
     @Published private(set) var isSeparating = false
     @Published private(set) var isTranscribing = false
@@ -52,6 +53,13 @@ final class SeparationViewModel: ObservableObject {
 
     var canRetryTranscription: Bool {
         result != nil && !isImporting && !isProcessing
+    }
+
+    var modelDownloadProgress: Double? {
+        guard case .downloadingModel(let fraction) = transcriptionStage else {
+            return nil
+        }
+        return fraction
     }
 
     func handleImport(_ importResult: Result<URL, Error>) {
@@ -114,34 +122,10 @@ final class SeparationViewModel: ObservableObject {
                 }
                 result = separationResult
                 progress = 1
-                isSeparating = false
-                isTranscribing = true
-                statusText = "分离完成，正在准备人声转写…"
-
-                do {
-                    let completedTranscript = try await transcriptionCoordinator.transcribe(
-                        separationResult: separationResult
-                    ) { [weak self] stage in
-                        await self?.apply(stage)
-                    }
-                    try Task.checkCancellation()
-                    transcript = completedTranscript
-                    transcriptionErrorText = nil
-                    statusText = "分离与转写完成"
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    transcriptionErrorText = Self.errorMessage(error)
-                    present(error: error, title: "转写失败")
-                    statusText = "分离完成，转写未完成"
-                }
+                statusText = "分离完成；人声转写为可选功能"
             } catch is CancellationError {
-                if result == nil {
-                    statusText = "已取消"
-                    progress = 0
-                } else {
-                    statusText = "分离完成，已取消转写"
-                }
+                statusText = "已取消"
+                progress = 0
             } catch {
                 present(error: error, title: "分离失败")
                 statusText = "处理未完成"
@@ -154,9 +138,10 @@ final class SeparationViewModel: ObservableObject {
         }
     }
 
-    func retryTranscription() {
+    func startTranscription() {
         guard let result, canRetryTranscription else { return }
         playback.stop()
+        hasRequestedTranscription = true
         transcript = nil
         transcriptionErrorText = nil
         transcriptionStage = nil
@@ -180,7 +165,12 @@ final class SeparationViewModel: ObservableObject {
                 statusText = "分离完成，已取消转写"
             } catch {
                 transcriptionErrorText = Self.errorMessage(error)
-                present(error: error, title: "转写失败")
+                present(
+                    error: error,
+                    title: error is TranscriptionModelManagerError
+                        ? "模型准备失败"
+                        : "转写失败"
+                )
                 statusText = "分离完成，转写未完成"
             }
             isTranscribing = false
@@ -189,9 +179,15 @@ final class SeparationViewModel: ObservableObject {
         }
     }
 
+    func retryTranscription() {
+        startTranscription()
+    }
+
     func cancel() {
         processingTask?.cancel()
-        if isTranscribing {
+        if isPreparingTranscriptionModel {
+            statusText = "正在取消转写模型准备…"
+        } else if isTranscribing {
             statusText = "正在取消转写；当前推理步骤结束后停止…"
         } else {
             statusText = "正在取消；当前推理块结束后停止…"
@@ -229,8 +225,12 @@ final class SeparationViewModel: ObservableObject {
     private func apply(_ stage: VocalTranscriptionStage) {
         transcriptionStage = stage
         switch stage {
-        case .checkingBundledModel:
-            statusText = "正在检查应用内置的转写模型…"
+        case .checkingModel:
+            statusText = "正在检查本机转写模型…"
+        case .downloadingModel(let fraction):
+            statusText = "正在下载转写模型（\(Int(fraction * 100))%）…"
+        case .verifyingModel:
+            statusText = "正在校验转写模型…"
         case .prewarmingModel:
             statusText = "正在为本机优化转写模型（首次可能较慢）…"
         case .loadingModel:
@@ -244,6 +244,16 @@ final class SeparationViewModel: ObservableObject {
         transcript = nil
         transcriptionErrorText = nil
         transcriptionStage = nil
+        hasRequestedTranscription = false
+    }
+
+    private var isPreparingTranscriptionModel: Bool {
+        switch transcriptionStage {
+        case .checkingModel, .downloadingModel, .verifyingModel:
+            return true
+        case .prewarmingModel, .loadingModel, .transcribing, .none:
+            return false
+        }
     }
 
     private func present(error: Error, title: String) {

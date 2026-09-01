@@ -45,10 +45,23 @@ final class RealPipelineIntegrationTests: XCTestCase {
             !viewModel.isProcessing
         }
 
+        let separatedResult = try XCTUnwrap(viewModel.result)
+        XCTAssertNil(viewModel.transcript)
+        let callsBeforeOptIn = await transcriber.calls
+        XCTAssertEqual(callsBeforeOptIn.count, 0)
+
+        // This explicit action is the integration test's opt-in. If the model is
+        // not installed, the production transcriber downloads and verifies it now.
+        viewModel.startTranscription()
+        try await waitUntil(timeout: 45 * 60) {
+            !viewModel.isProcessing
+        }
+
         if let alert = viewModel.alert {
             XCTFail("\(alert.title): \(alert.message)")
         }
         let result = try XCTUnwrap(viewModel.result)
+        XCTAssertEqual(result, separatedResult)
         let transcript = try XCTUnwrap(viewModel.transcript)
         XCTAssertFalse(transcript.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         XCTAssertEqual(viewModel.statusText, "分离与转写完成")

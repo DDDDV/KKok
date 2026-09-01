@@ -1,5 +1,28 @@
 # Model provenance
 
+## Optional Whisper transcription model
+
+The app does not embed the Whisper weights. Its signed resources contain only
+`MODEL_MANIFEST.json`, which pins:
+
+- Argmax Core ML model revision
+  `7235bbd38ae9ab5476bee007313c0bb327387b84`;
+- OpenAI tokenizer revision
+  `06f233fe06e710322aca913c1bc4249a0d71fce1`;
+- every installed relative path, byte length, and SHA-256 digest.
+
+After explicit user consent, the installer tries release-configured HTTPS mirror
+roots first and those fixed Hugging Face revisions only as a final fallback. A
+download is not exposed to WhisperKit until every manifest entry passes
+validation and the staging directory has been atomically installed. WhisperKit's
+own model download remains disabled.
+
+The repository retains `WhisperKitResources.bundle` as auditable mirror source
+material, but `project.yml` excludes the wrapper from Copy Bundle Resources and
+adds only its manifest.
+
+## HTDemucs separation model
+
 The bundled development model is `HTDemucs_CoreML_FP16.mlpackage`, generated
 from `dexxdean/htdemucs-coreml` commit `d6fe735` with:
 

@@ -25,52 +25,71 @@ final class BundledModelContractTests: XCTestCase {
         XCTAssertNoThrow(try HTDemucsModelRunner(model: model))
     }
 
-    func testBundledWhisperModelKeepsRequiredHierarchyWithoutSenseVoice() throws {
-        let wrapperURL = try XCTUnwrap(
+    func testAppBundleContainsOnlyWhisperManifestNotModelWeights() throws {
+        XCTAssertNil(
             Bundle.main.url(
                 forResource: "WhisperKitResources",
                 withExtension: "bundle"
             )
         )
-        let resources = try WhisperModelStore(bundle: .main).bundledResources()
-        XCTAssertEqual(resources.rootURL, wrapperURL)
-
-        let modelFiles = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { model in
-            [
-                "\(model).mlmodelc/coremldata.bin",
-                "\(model).mlmodelc/model.mil",
-                "\(model).mlmodelc/weights/weight.bin"
-            ]
-        }
-        for relativePath in modelFiles {
-            assertNonemptyFile(
-                resources.modelFolderURL.appendingPathComponent(relativePath)
+        assertNonemptyFile(
+            try XCTUnwrap(
+                Bundle.main.url(
+                    forResource: "MODEL_MANIFEST",
+                    withExtension: "json"
+                )
             )
-        }
-        for name in ["config.json", "tokenizer.json", "tokenizer_config.json"] {
-            assertNonemptyFile(
-                resources.tokenizerFolderURL.appendingPathComponent(name)
-            )
-        }
+        )
 
         let resourceRoot = try XCTUnwrap(Bundle.main.resourceURL)
-        for flattenedName in ["AudioEncoder.mlmodelc", "tokenizer.json"] {
+        for forbiddenName in [
+            TranscriptionModelManager.expectedModelFolderName,
+            "AudioEncoder.mlmodelc",
+            "TextDecoder.mlmodelc",
+            "MelSpectrogram.mlmodelc",
+            "tokenizer.json",
+            "weight.bin"
+        ] {
             XCTAssertFalse(
                 FileManager.default.fileExists(
-                    atPath: resourceRoot.appendingPathComponent(flattenedName).path
+                    atPath: resourceRoot.appendingPathComponent(forbiddenName).path
                 )
             )
         }
 
-        let bundledPaths = try XCTUnwrap(
+        let bundledURLs = try XCTUnwrap(
             FileManager.default.enumerator(
                 at: resourceRoot,
                 includingPropertiesForKeys: nil
             )?.allObjects as? [URL]
-        ).map(\.lastPathComponent)
-        XCTAssertFalse(bundledPaths.contains("SenseVoicePreprocessor.mlmodelc"))
-        XCTAssertFalse(bundledPaths.contains("SenseVoiceSmall.mlmodelc"))
-        XCTAssertFalse(bundledPaths.contains("SenseVoiceTokenizer.model"))
+        )
+        let bundledNames = bundledURLs.map(\.lastPathComponent)
+        for forbiddenName in [
+            "WhisperKitResources.bundle",
+            TranscriptionModelManager.expectedModelFolderName,
+            "AudioEncoder.mlmodelc",
+            "TextDecoder.mlmodelc",
+            "MelSpectrogram.mlmodelc",
+            "SenseVoicePreprocessor.mlmodelc",
+            "SenseVoiceSmall.mlmodelc",
+            "SenseVoiceTokenizer.model"
+        ] {
+            XCTAssertFalse(bundledNames.contains(forbiddenName))
+        }
+
+        // The bundled HTDemucs separation model legitimately contains its own
+        // weight.bin. Check the exact Whisper manifest paths instead of
+        // rejecting unrelated model weights by basename.
+        for whisperResourcePath in TranscriptionModelManager.expectedResourcePaths {
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: resourceRoot
+                        .appendingPathComponent(whisperResourcePath)
+                        .path
+                ),
+                "Unexpected bundled transcription resource: \(whisperResourcePath)"
+            )
+        }
     }
 
     private func assertNonemptyFile(
