@@ -1,0 +1,8 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# The model is large and its redistribution terms need separate review.
+VocalSeparator/Resources/Models/*.mlpackage

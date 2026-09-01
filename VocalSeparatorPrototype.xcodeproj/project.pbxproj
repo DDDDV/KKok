@@ -1,0 +1,531 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0757844E5DF030D30EEB052E /* AudioPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D844C073CC6FEA18AC694F3 /* AudioPlaybackController.swift */; };
+		2F4DDDA016BC309860E867CD /* ChunkPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AE51E757563A81122D8DDE /* ChunkPlannerTests.swift */; };
+		31D8DD69858BE7CD4F741437 /* VocalSeparatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEED45357B5E00417A3299D8 /* VocalSeparatorApp.swift */; };
+		366255E0BDB1967AF2349368 /* TensorIOTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3F5E1395CA4AFC02BE5596 /* TensorIOTests.swift */; };
+		3E495D13A0C3CBDD6094D6D2 /* HTDemucsContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF17D1154DF72245C7971A1E /* HTDemucsContract.swift */; };
+		596E84E75B89A136B1718B41 /* AudioPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797341B97870513018C856D7 /* AudioPipeline.swift */; };
+		5D66A47F027F74BEFB3A399D /* RollingOverlapAddTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58D5CFF301306F27F329D5E9 /* RollingOverlapAddTests.swift */; };
+		5E207132D80C9E0227BA3335 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1B3E0CE7287279FA9F0B79F2 /* THIRD_PARTY_NOTICES.txt */; };
+		6EB091DA0723CC119E406EAC /* AudioImportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24427550421786807F3EF8CC /* AudioImportStore.swift */; };
+		790B56241DF772E99F4319FB /* SeparationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BC5383A02A162F96AE7F48 /* SeparationViewModel.swift */; };
+		7DC994B0B6FD3B710367094E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1BA06E21E369B1046B90B8BA /* Assets.xcassets */; };
+		8F6469EEF103B38BC221B0F7 /* AudioPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118E8C82838CBDD1CFF6F332 /* AudioPipelineTests.swift */; };
+		AC6CC086A3F937B78D2FAACB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 459FBBAAAD6684687726004C /* ContentView.swift */; };
+		B8B7506913A9A0BDCDA88A45 /* HTDemucs_CoreML_FP16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */; };
+		C9B55F6E3C2602D6D7E9CC9B /* RollingOverlapAddWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C29025CE508DFFF375D9F26 /* RollingOverlapAddWriter.swift */; };
+		CD0943FE884F4373D21A74B0 /* StemSeparationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D1E265288D3130CB4691A5 /* StemSeparationEngine.swift */; };
+		E85680A5BAB5A70CCE470405 /* BundledModelContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E52E5D61D8EFD3E1EF8B4E /* BundledModelContractTests.swift */; };
+		EABCFD3AF1269C1760B0C188 /* HTDemucsModelRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */; };
+		FBFB5DB7B1499C5CDF12C6B9 /* CrossfadeWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE18FC7610C38FD23FE1BE4 /* CrossfadeWindowTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6A3D4DAB440873588A12A65C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CE9B57AAEF0FD2D9B2807D96 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 498D1729A03DAFFC01B31898;
+			remoteInfo = VocalSeparator;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00BC5383A02A162F96AE7F48 /* SeparationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeparationViewModel.swift; sourceTree = "<group>"; };
+		0B62DABD904DA2A9D728D0FD /* VocalSeparator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VocalSeparator.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		118E8C82838CBDD1CFF6F332 /* AudioPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipelineTests.swift; sourceTree = "<group>"; };
+		1B3E0CE7287279FA9F0B79F2 /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
+		1BA06E21E369B1046B90B8BA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		24427550421786807F3EF8CC /* AudioImportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioImportStore.swift; sourceTree = "<group>"; };
+		34E52E5D61D8EFD3E1EF8B4E /* BundledModelContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledModelContractTests.swift; sourceTree = "<group>"; };
+		3E3F5E1395CA4AFC02BE5596 /* TensorIOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TensorIOTests.swift; sourceTree = "<group>"; };
+		459FBBAAAD6684687726004C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5413621C17A9F5ACB8616709 /* VocalSeparatorTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VocalSeparatorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		58D5CFF301306F27F329D5E9 /* RollingOverlapAddTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingOverlapAddTests.swift; sourceTree = "<group>"; };
+		5C29025CE508DFFF375D9F26 /* RollingOverlapAddWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingOverlapAddWriter.swift; sourceTree = "<group>"; };
+		797341B97870513018C856D7 /* AudioPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipeline.swift; sourceTree = "<group>"; };
+		7D844C073CC6FEA18AC694F3 /* AudioPlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackController.swift; sourceTree = "<group>"; };
+		90AE51E757563A81122D8DDE /* ChunkPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkPlannerTests.swift; sourceTree = "<group>"; };
+		AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = HTDemucs_CoreML_FP16.mlpackage; sourceTree = "<group>"; };
+		B8D1E265288D3130CB4691A5 /* StemSeparationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StemSeparationEngine.swift; sourceTree = "<group>"; };
+		CEED45357B5E00417A3299D8 /* VocalSeparatorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VocalSeparatorApp.swift; sourceTree = "<group>"; };
+		CFE18FC7610C38FD23FE1BE4 /* CrossfadeWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossfadeWindowTests.swift; sourceTree = "<group>"; };
+		E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsModelRunner.swift; sourceTree = "<group>"; };
+		EF17D1154DF72245C7971A1E /* HTDemucsContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsContract.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		03C3A69CDE086D41DAAC2F5F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0B62DABD904DA2A9D728D0FD /* VocalSeparator.app */,
+				5413621C17A9F5ACB8616709 /* VocalSeparatorTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		13435F59B60AA36F3F4D4E09 = {
+			isa = PBXGroup;
+			children = (
+				7A6676DC47F3CED846F30813 /* VocalSeparator */,
+				A68F99025851972E66013CD7 /* VocalSeparatorTests */,
+				03C3A69CDE086D41DAAC2F5F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		21DD94149460D91B1E8EE8EC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1BA06E21E369B1046B90B8BA /* Assets.xcassets */,
+				1B3E0CE7287279FA9F0B79F2 /* THIRD_PARTY_NOTICES.txt */,
+				4516B7E4B70F051205CCC70D /* Models */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		3AA3FEEA23D3A46ECD13B639 /* Separation */ = {
+			isa = PBXGroup;
+			children = (
+				EF17D1154DF72245C7971A1E /* HTDemucsContract.swift */,
+				E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */,
+				5C29025CE508DFFF375D9F26 /* RollingOverlapAddWriter.swift */,
+				B8D1E265288D3130CB4691A5 /* StemSeparationEngine.swift */,
+			);
+			path = Separation;
+			sourceTree = "<group>";
+		};
+		4231328B8BF002439B4E77B6 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				459FBBAAAD6684687726004C /* ContentView.swift */,
+				CEED45357B5E00417A3299D8 /* VocalSeparatorApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		4516B7E4B70F051205CCC70D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		7A6676DC47F3CED846F30813 /* VocalSeparator */ = {
+			isa = PBXGroup;
+			children = (
+				4231328B8BF002439B4E77B6 /* App */,
+				F7BE9B37A8456C842E24608C /* Audio */,
+				AFE2BB9A3CFB4AE98A2B6BF5 /* Features */,
+				21DD94149460D91B1E8EE8EC /* Resources */,
+				3AA3FEEA23D3A46ECD13B639 /* Separation */,
+			);
+			path = VocalSeparator;
+			sourceTree = "<group>";
+		};
+		A68F99025851972E66013CD7 /* VocalSeparatorTests */ = {
+			isa = PBXGroup;
+			children = (
+				118E8C82838CBDD1CFF6F332 /* AudioPipelineTests.swift */,
+				34E52E5D61D8EFD3E1EF8B4E /* BundledModelContractTests.swift */,
+				90AE51E757563A81122D8DDE /* ChunkPlannerTests.swift */,
+				CFE18FC7610C38FD23FE1BE4 /* CrossfadeWindowTests.swift */,
+				58D5CFF301306F27F329D5E9 /* RollingOverlapAddTests.swift */,
+				3E3F5E1395CA4AFC02BE5596 /* TensorIOTests.swift */,
+			);
+			path = VocalSeparatorTests;
+			sourceTree = "<group>";
+		};
+		AFE2BB9A3CFB4AE98A2B6BF5 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				00BC5383A02A162F96AE7F48 /* SeparationViewModel.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		F7BE9B37A8456C842E24608C /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				24427550421786807F3EF8CC /* AudioImportStore.swift */,
+				797341B97870513018C856D7 /* AudioPipeline.swift */,
+				7D844C073CC6FEA18AC694F3 /* AudioPlaybackController.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2F780B0382CC17FBA6E6C2D7 /* VocalSeparatorTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F267E61C730BBDCB60B83E12 /* Build configuration list for PBXNativeTarget "VocalSeparatorTests" */;
+			buildPhases = (
+				21D85EA06AA69B18D25B2445 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5684C8AC5E26F3CB6A5D7626 /* PBXTargetDependency */,
+			);
+			name = VocalSeparatorTests;
+			packageProductDependencies = (
+			);
+			productName = VocalSeparatorTests;
+			productReference = 5413621C17A9F5ACB8616709 /* VocalSeparatorTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		498D1729A03DAFFC01B31898 /* VocalSeparator */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 622B394E5A4851794636BD4A /* Build configuration list for PBXNativeTarget "VocalSeparator" */;
+			buildPhases = (
+				D7BA540EA18DE8AD9ECF41E6 /* Sources */,
+				F6C568E6140A29BDBA343E27 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VocalSeparator;
+			packageProductDependencies = (
+			);
+			productName = VocalSeparator;
+			productReference = 0B62DABD904DA2A9D728D0FD /* VocalSeparator.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CE9B57AAEF0FD2D9B2807D96 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					498D1729A03DAFFC01B31898 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 2F72C3A4DFD59530F2BF70F1 /* Build configuration list for PBXProject "VocalSeparatorPrototype" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 13435F59B60AA36F3F4D4E09;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 03C3A69CDE086D41DAAC2F5F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				498D1729A03DAFFC01B31898 /* VocalSeparator */,
+				2F780B0382CC17FBA6E6C2D7 /* VocalSeparatorTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F6C568E6140A29BDBA343E27 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DC994B0B6FD3B710367094E /* Assets.xcassets in Resources */,
+				B8B7506913A9A0BDCDA88A45 /* HTDemucs_CoreML_FP16.mlpackage in Resources */,
+				5E207132D80C9E0227BA3335 /* THIRD_PARTY_NOTICES.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		21D85EA06AA69B18D25B2445 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F6469EEF103B38BC221B0F7 /* AudioPipelineTests.swift in Sources */,
+				E85680A5BAB5A70CCE470405 /* BundledModelContractTests.swift in Sources */,
+				2F4DDDA016BC309860E867CD /* ChunkPlannerTests.swift in Sources */,
+				FBFB5DB7B1499C5CDF12C6B9 /* CrossfadeWindowTests.swift in Sources */,
+				5D66A47F027F74BEFB3A399D /* RollingOverlapAddTests.swift in Sources */,
+				366255E0BDB1967AF2349368 /* TensorIOTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7BA540EA18DE8AD9ECF41E6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6EB091DA0723CC119E406EAC /* AudioImportStore.swift in Sources */,
+				596E84E75B89A136B1718B41 /* AudioPipeline.swift in Sources */,
+				0757844E5DF030D30EEB052E /* AudioPlaybackController.swift in Sources */,
+				AC6CC086A3F937B78D2FAACB /* ContentView.swift in Sources */,
+				3E495D13A0C3CBDD6094D6D2 /* HTDemucsContract.swift in Sources */,
+				EABCFD3AF1269C1760B0C188 /* HTDemucsModelRunner.swift in Sources */,
+				C9B55F6E3C2602D6D7E9CC9B /* RollingOverlapAddWriter.swift in Sources */,
+				790B56241DF772E99F4319FB /* SeparationViewModel.swift in Sources */,
+				CD0943FE884F4373D21A74B0 /* StemSeparationEngine.swift in Sources */,
+				31D8DD69858BE7CD4F741437 /* VocalSeparatorApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5684C8AC5E26F3CB6A5D7626 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 498D1729A03DAFFC01B31898 /* VocalSeparator */;
+			targetProxy = 6A3D4DAB440873588A12A65C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0D7FEB5C19C6BD7259CF7D8A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		222B6F4937564FFF60D7406E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototypeTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VocalSeparator.app/VocalSeparator";
+			};
+			name = Debug;
+		};
+		2AA22A3E5B0D3613E3A5E145 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototypeTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VocalSeparator.app/VocalSeparator";
+			};
+			name = Release;
+		};
+		3984173D233AD68BBF3090EC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		669F2DEB117F2CF9B8BF774A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 947X8JA62C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "人声分离原型";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototype;
+				PRODUCT_NAME = VocalSeparator;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		F6167AA73D5F5E97099AF82A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 947X8JA62C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "人声分离原型";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototype;
+				PRODUCT_NAME = VocalSeparator;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2F72C3A4DFD59530F2BF70F1 /* Build configuration list for PBXProject "VocalSeparatorPrototype" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0D7FEB5C19C6BD7259CF7D8A /* Debug */,
+				3984173D233AD68BBF3090EC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		622B394E5A4851794636BD4A /* Build configuration list for PBXNativeTarget "VocalSeparator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F6167AA73D5F5E97099AF82A /* Debug */,
+				669F2DEB117F2CF9B8BF774A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F267E61C730BBDCB60B83E12 /* Build configuration list for PBXNativeTarget "VocalSeparatorTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				222B6F4937564FFF60D7406E /* Debug */,
+				2AA22A3E5B0D3613E3A5E145 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CE9B57AAEF0FD2D9B2807D96 /* Project object */;
+}
