@@ -6,3 +6,8 @@ xcuserdata/
 
 # The model is large and its redistribution terms need separate review.
 VocalSeparator/Resources/Models/*.mlpackage
+
+# Task-local SenseVoice experiments are not used by the WhisperKit pipeline.
+VocalSeparator/Resources/Models/SenseVoicePreprocessor.mlmodelc/
+VocalSeparator/Resources/Models/SenseVoiceSmall.mlmodelc/
+VocalSeparator/Resources/Models/SenseVoiceTokenizer.model

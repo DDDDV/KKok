@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
@@ -27,7 +28,7 @@ struct ContentView: View {
                         hero
                         importCard
 
-                        if viewModel.isProcessing {
+                        if viewModel.isSeparating {
                             progressCard
                         }
 
@@ -97,9 +98,9 @@ struct ContentView: View {
             }
 
             VStack(spacing: 6) {
-                Text("人声分离")
+                Text("人声分离与转写")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                Text("在设备上将 MP3 拆分为人声与伴奏")
+                Text("在设备上拆分人声与伴奏，并将人声转为文本")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.66))
             }
@@ -238,13 +239,23 @@ struct ContentView: View {
                 playback: viewModel.playback,
                 togglePlayback: viewModel.togglePlayback
             )
+
+            TranscriptResultCard(
+                transcript: viewModel.transcript,
+                errorText: viewModel.transcriptionErrorText,
+                isTranscribing: viewModel.isTranscribing,
+                statusText: viewModel.statusText,
+                canRetry: viewModel.canRetryTranscription,
+                retry: viewModel.retryTranscription,
+                cancel: viewModel.cancel
+            )
         }
         .padding(.top, 4)
     }
 
     private var privacyNote: some View {
         Label {
-            Text("音频只在本机临时处理，不会上传。请及时分享保存结果，并在处理期间保持前台。")
+            Text("音频和转写都只在本机处理，不会上传；转写模型已随应用内置，无需首次联网下载。请及时保存结果，并在处理期间保持前台。")
         } icon: {
             Image(systemName: "lock.shield")
         }
@@ -252,6 +263,83 @@ struct ContentView: View {
         .foregroundStyle(.white.opacity(0.5))
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
+    }
+}
+
+private struct TranscriptResultCard: View {
+    let transcript: VocalTranscript?
+    let errorText: String?
+    let isTranscribing: Bool
+    let statusText: String
+    let canRetry: Bool
+    let retry: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("人声文本", systemImage: "text.quote")
+                    .font(.headline)
+                Spacer()
+                if let languageName {
+                    Text(languageName)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+            }
+
+            if isTranscribing {
+                HStack(spacing: 12) {
+                    ProgressView()
+                        .tint(.pink)
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.66))
+                    Spacer(minLength: 8)
+                    Button("取消", role: .destructive, action: cancel)
+                        .font(.caption.weight(.semibold))
+                }
+            } else if let transcript {
+                Text(transcript.text)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 12) {
+                    Button {
+                        UIPasteboard.general.string = transcript.text
+                    } label: {
+                        Label("复制文本", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(SecondaryActionButtonStyle())
+
+                    ShareLink(item: transcript.text) {
+                        Label("分享文本", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(SecondaryActionButtonStyle())
+                }
+            } else {
+                Text(errorText ?? "转写尚未完成，可以重新开始。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.66))
+
+                Button(action: retry) {
+                    Label("重试转写", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(SecondaryActionButtonStyle())
+                .disabled(!canRetry)
+            }
+        }
+        .padding(14)
+        .glassCard()
+    }
+
+    private var languageName: String? {
+        guard let code = transcript?.languageCode else { return nil }
+        return Locale.autoupdatingCurrent.localizedString(forLanguageCode: code)
+            ?? code.uppercased()
     }
 }
 
@@ -325,7 +413,7 @@ private struct LegalView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("研究原型说明")
                         .font(.title2.bold())
-                    Text("本应用是本地技术验证原型。它使用 HTDemucs 将音频拆为 vocals、drums、bass、other，并将后三轨相加生成伴奏。")
+                    Text("本应用是本地技术验证原型。它使用 HTDemucs 将音频拆为 vocals、drums、bass、other，并将后三轨相加生成伴奏；随后使用 Argmax WhisperKit 在设备上将人声转为文本。")
 
                     Text("许可边界")
                         .font(.headline)
@@ -339,8 +427,12 @@ private struct LegalView: View {
                         "Demucs 权重许可讨论",
                         destination: URL(string: "https://github.com/facebookresearch/demucs/issues/327")!
                     )
+                    Link(
+                        "Argmax 开源 Swift SDK",
+                        destination: URL(string: "https://github.com/argmaxinc/argmax-oss-swift")!
+                    )
 
-                    Text("This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. Source code is provided under the MIT License. This project is not affiliated with Apple, Meta, or the Demucs authors.")
+                    Text("This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

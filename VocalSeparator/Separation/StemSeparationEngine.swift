@@ -3,7 +3,15 @@ import Foundation
 
 typealias SeparationProgressHandler = @Sendable (SeparationProgress) async -> Void
 
-actor StemSeparationEngine {
+protocol StemSeparating: Sendable {
+    func separate(
+        sourceURL: URL,
+        outputRoot: URL,
+        progress: @escaping SeparationProgressHandler
+    ) async throws -> SeparationResult
+}
+
+actor StemSeparationEngine: StemSeparating {
     private let bundle: Bundle
 
     init(bundle: Bundle = .main) {
