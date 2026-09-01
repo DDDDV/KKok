@@ -82,9 +82,9 @@ Simulator 26.5，以及 iPhone 16 Pro Max（iPhone17,2，iOS 18.7.2）。
   tokenizer 文件的精确大小。测试覆盖无清单、错误 variant、缺文件、空文件与
   大小恢复。
 
-## 模型证据
+## 改造前模型证据（历史）
 
-内置 Whisper 资源来自固定 revision：
+改造前内置的 Whisper 资源来自固定 revision：
 
 - Argmax Core ML 模型：
   `7235bbd38ae9ab5476bee007313c0bb327387b84`；17 个文件，
@@ -160,9 +160,10 @@ predict:   10.47 s
   尚未验收。
 - Demucs 预训练权重的再分发许可仍需在任何公开发布前单独解决。Whisper 相关
   许可来源已经写入 app 内第三方声明，但正式发行仍应由发布方复核。
-- 当前两份 Whisper `weight.bin` 大于 GitHub 普通 Git 的单文件上限；若需要将
-  bundle 纳入远端版本控制，必须配置 Git LFS 并确认构建拿到的是实际权重而非
-  pointer 文件。
+- Whisper 模型与 tokenizer 源目录有意不纳入当前可推送分支；该分支历史仅保留
+  固定 revision、27 个相对路径、精确长度和 SHA-256 的可信 manifest。需要重建
+  镜像时，按 `MODEL_PROVENANCE.md` 记录的上游 URL 获取并逐文件复验，不把模型
+  载荷或 LFS pointer 加入 app 资源。
 
 因此，当前代码结论是“分离默认不下载转写模型；用户明确同意后，应用才通过可配置
 镜像准备并校验固定模型，app 本身不再携带 Whisper 权重”。改造前真机记录证明模型

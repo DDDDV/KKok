@@ -11,3 +11,8 @@ VocalSeparator/Resources/Models/*.mlpackage
 VocalSeparator/Resources/Models/SenseVoicePreprocessor.mlmodelc/
 VocalSeparator/Resources/Models/SenseVoiceSmall.mlmodelc/
 VocalSeparator/Resources/Models/SenseVoiceTokenizer.model
+
+# Optional Whisper source mirror. The publishable branch tracks only the trusted
+# manifest; reconstruct these directories from the sources in MODEL_PROVENANCE.md.
+VocalSeparator/Resources/Models/WhisperKitResources.bundle/openai_whisper-large-v3-v20240930_626MB/
+VocalSeparator/Resources/Models/WhisperKitResources.bundle/tokenizer/

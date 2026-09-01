@@ -11,15 +11,53 @@ The app does not embed the Whisper weights. Its signed resources contain only
   `06f233fe06e710322aca913c1bc4249a0d71fce1`;
 - every installed relative path, byte length, and SHA-256 digest.
 
+The exact upstream inputs verified on 2026-09-01 are:
+
+| Material | Repository | Fixed revision | Files | Bytes |
+| --- | --- | --- | ---: | ---: |
+| WhisperKit Core ML model folder `openai_whisper-large-v3-v20240930_626MB` | https://huggingface.co/argmaxinc/whisperkit-coreml | `7235bbd38ae9ab5476bee007313c0bb327387b84` | 17 | 626,718,238 |
+| Whisper large-v3 tokenizer and processor metadata | https://huggingface.co/openai/whisper-large-v3 | `06f233fe06e710322aca913c1bc4249a0d71fce1` | 10 | 4,388,788 |
+
+Together these are the 27 manifest entries and total 631,107,026 bytes
+(approximately 601.87 MiB). The committed manifest is the authoritative
+per-file inventory; it contains the relative path, exact byte length, and
+SHA-256 for every file.
+
+For reproducible retrieval, model entries use this direct URL rule, where
+`{manifest-relative-path}` includes the model folder name:
+
+```text
+https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/7235bbd38ae9ab5476bee007313c0bb327387b84/{manifest-relative-path}
+```
+
+Tokenizer entries use this rule, with the leading `tokenizer/` removed from
+the manifest path:
+
+```text
+https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/{path-after-tokenizer-prefix}
+```
+
+The browsable pinned trees are:
+
+- https://huggingface.co/argmaxinc/whisperkit-coreml/tree/7235bbd38ae9ab5476bee007313c0bb327387b84/openai_whisper-large-v3-v20240930_626MB
+- https://huggingface.co/openai/whisper-large-v3/tree/06f233fe06e710322aca913c1bc4249a0d71fce1
+
 After explicit user consent, the installer tries release-configured HTTPS mirror
 roots first and those fixed Hugging Face revisions only as a final fallback. A
 download is not exposed to WhisperKit until every manifest entry passes
 validation and the staging directory has been atomically installed. WhisperKit's
 own model download remains disabled.
 
-The repository retains `WhisperKitResources.bundle` as auditable mirror source
-material, but `project.yml` excludes the wrapper from Copy Bundle Resources and
-adds only its manifest.
+The publishable branch history intentionally retains only
+`WhisperKitResources.bundle/MODEL_MANIFEST.json`. The model and tokenizer
+directories are ignored task-local mirror material and are not pushed to the
+remote repository. To reconstruct a mirror, download the entries using the
+rules above, preserve their manifest-relative paths, and reject any file whose
+length or SHA-256 differs. A release-configured mirror root must expose those
+same manifest-relative paths. `project.yml` excludes the wrapper from Copy
+Bundle Resources and adds only its manifest. Local recovery refs created while
+rewriting earlier history are outside the branch and must never be sent with a
+mirror or explicit backup-ref push.
 
 ## HTDemucs separation model
 

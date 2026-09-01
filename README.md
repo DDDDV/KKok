@@ -20,10 +20,13 @@ Caches，并在下次启动时清理，请在当前会话中及时分享保存�
 
 ## 快速开始
 
-交付包已包含生成好的 Xcode 工程和约 222 MB 的 HTDemucs FP16 模型。仓库中保留
-一份固定版本的 Whisper 模型树，用于构建下载镜像和复核来源，但 Xcode target 只复制
-小型 `MODEL_MANIFEST.json`，不会把约 `602 MiB` 的 Whisper 权重打入 app。
-安装完整 Xcode 后可直接打开：
+当前本地交付目录已包含生成好的 Xcode 工程和约 222 MB 的 HTDemucs FP16 模型；从
+Git 新克隆的源码不包含该分离模型，需要先按下文运行 `./Scripts/bootstrap.sh`。当前
+可推送分支只跟踪小型 `MODEL_MANIFEST.json`，不会推送约 `602 MiB` 的 Whisper 模型树，
+也不会把它打入 app。manifest 记录了固定上游版本、27 个文件的长度和 SHA-256；完整
+下载来源和 URL 规则见 [`MODEL_PROVENANCE.md`](MODEL_PROVENANCE.md)。
+
+已有 HTDemucs 本地模型时，安装完整 Xcode 后可直接打开：
 
 ```sh
 open VocalSeparatorPrototype.xcodeproj
@@ -33,9 +36,9 @@ open VocalSeparatorPrototype.xcodeproj
 团队的唯一 Bundle Identifier，再选择团队和 iPhone 运行。Simulator 可验证
 界面、文件处理和测试，但不能代表 iPhone 上的 Core ML GPU 性能。
 
-只有在删除了 HTDemucs 捆绑模型，或修改 `project.yml` 需要重新生成工程时，
-才需要 XcodeGen 并运行 `./Scripts/bootstrap.sh`。该脚本只恢复 HTDemucs：它会
-下载约 144 MB 的 release 压缩包、校验 SHA-256，再生成工程。
+从 Git 新克隆、删除了 HTDemucs 捆绑模型，或修改 `project.yml` 需要重新生成工程时，
+需要 XcodeGen 并运行 `./Scripts/bootstrap.sh`。该脚本只恢复 HTDemucs：它会下载约
+144 MB 的 release 压缩包、校验 SHA-256，再生成工程。
 
 如果不想下载 release 模型，也可在
 [`dexxdean/htdemucs-coreml`](https://github.com/dexxdean/htdemucs-coreml)
@@ -126,8 +129,9 @@ Documents 后，它会走与 app 相同的导入、HTDemucs 分离和 WhisperKit
 - 增量识别会按音频窗口检测语言；界面显示的是各结果中的多数语言，双语歌曲或
   很短的噪声片段可能让语言标签偏离整首歌的主语言，但不影响文本导出。
 - 尚未量化峰值内存、温升及多首长音频的准确率与接缝稳定性。
-- 两个 Whisper 权重文件超过 GitHub 普通 Git 的单文件限制；如需提交或推送这份
-  bundle，应先配置仅覆盖这些权重的 Git LFS，不能把小型 LFS pointer 打进 app。
+- Whisper 模型与 tokenizer 源文件有意不进入 Git；本地复核副本由 `.gitignore`
+  排除。需要重建下载镜像时，应按可信 manifest 从固定上游 revision 获取并重新校验，
+  不要把模型载荷或 LFS pointer 加入 app 资源。
 - 选取和处理有版权的音乐时，使用者应确保自己拥有相应权利。
 
 ## 许可
