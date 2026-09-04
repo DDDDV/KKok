@@ -68,7 +68,7 @@ struct ContentView: View {
         }
         .sheet(item: $reviewingPerformance) { performance in
             PerformanceReviewView(performance: performance, store: viewModel.recording.store,
-                                  playback: viewModel.playback)
+                                  playback: viewModel.playback, onSave: viewModel.recording.didSaveAdjustments)
         }
         .alert("重命名歌曲", isPresented: Binding(get: { renamingSong != nil }, set: { if !$0 { renamingSong = nil } })) {
             TextField("歌曲名称", text: $editedTitle)
@@ -343,7 +343,7 @@ struct ContentView: View {
                         Text(performance.title).font(.system(size: 16, weight: .semibold)).lineLimit(1)
                         Text(performance.createdAt, format: .dateTime.month().day().hour().minute())
                             .font(.caption).foregroundStyle(.secondary)
-                        Text("\(StudioTheme.duration(performance.duration)) · 已保存演唱")
+                        Text("\(StudioTheme.duration(performance.duration)) · 回放与调整")
                             .font(.caption2).foregroundStyle(StudioTheme.accent)
                     }
                     Spacer(minLength: 0)
@@ -351,6 +351,7 @@ struct ContentView: View {
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
             Menu {
+                Button("回放与调整", systemImage: "slider.horizontal.3") { reviewingPerformance = performance }
                 ShareLink(item: viewModel.recording.store.mixURL(performance)) {
                     Label("导出演唱", systemImage: "square.and.arrow.up")
                 }

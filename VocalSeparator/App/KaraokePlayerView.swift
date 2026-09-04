@@ -26,7 +26,8 @@ struct KaraokeSessionView: View {
             Button("继续演唱", role: .cancel) {}
         } message: { Text("已录下的歌声会保存为作品。") }
         .sheet(item: $reviewingPerformance) { performance in
-            PerformanceReviewView(performance: performance, store: recording.store, playback: playback)
+            PerformanceReviewView(performance: performance, store: recording.store, playback: playback,
+                                  onSave: recording.didSaveAdjustments)
         }
         .onChange(of: recording.completedPerformance) { _, performance in reviewingPerformance = performance }
         .onDisappear { if !recording.isBusy { playback.stop() } }

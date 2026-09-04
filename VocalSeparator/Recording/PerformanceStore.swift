@@ -7,6 +7,17 @@ struct SingingPerformance: Codable, Identifiable, Equatable, Sendable {
     let duration: TimeInterval
     let lyrics: TimedLyrics?
     let fileName: String
+    // Optional so manifests written before editing was supported still decode.
+    var mixSettings: PerformanceMixSettings? = nil
+    var settings: PerformanceMixSettings { mixSettings ?? PerformanceMixSettings() }
+}
+
+struct RenderedPerformance: Sendable {
+    let performanceID: UUID
+    let sourceFileName: String
+    let settings: PerformanceMixSettings
+    let url: URL
+    let duration: TimeInterval
 }
 
 struct PendingPerformance: Codable, Sendable {
@@ -59,11 +70,50 @@ struct PerformanceStore: Sendable {
         try JSONEncoder().encode(performance).write(
             to: directory(pending.id).appendingPathComponent("performance.json"), options: .atomic
         )
-        // Publish the manifest before removing recovery inputs. Completed takes
-        // live outside the session cache and survive song replacement/relaunch.
+        // Keep both original stems for non-destructive edits after relaunch.
         try? FileManager.default.removeItem(at: directory(pending.id).appendingPathComponent("draft.json"))
-        try? FileManager.default.removeItem(at: accompanimentURL(pending.id))
         return performance
+    }
+
+    func canEdit(_ performance: SingingPerformance) -> Bool {
+        [microphoneURL(performance.id), accompanimentURL(performance.id)].allSatisfy {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+    }
+
+    func render(_ performance: SingingPerformance, settings: PerformanceMixSettings, to output: URL) throws -> RenderedPerformance {
+        guard canEdit(performance) else { throw SingingError.missingEditSources }
+        let duration = try PerformanceMixer().mix(
+            microphoneURL: microphoneURL(performance.id), accompanimentURL: accompanimentURL(performance.id),
+            outputURL: output, settings: settings
+        )
+        return RenderedPerformance(performanceID: performance.id, sourceFileName: performance.fileName,
+                                   settings: settings, url: output, duration: duration)
+    }
+
+    /// Copy the exact auditioned render, then atomically publish its manifest.
+    /// Until that commit, every failure leaves the previous saved mix readable.
+    func save(_ render: RenderedPerformance, replacing performance: SingingPerformance) throws -> SingingPerformance {
+        try render.settings.validate()
+        let manifest = directory(performance.id).appendingPathComponent("performance.json")
+        let current = try JSONDecoder().decode(SingingPerformance.self, from: Data(contentsOf: manifest))
+        guard current == performance, render.performanceID == performance.id,
+              render.sourceFileName == performance.fileName else { throw SingingError.staleEdit }
+        let name = FileNameSanitizer.sanitize(performance.title) + "-我的演唱-\(UUID().uuidString).wav"
+        let updated = SingingPerformance(
+            id: performance.id, title: performance.title, createdAt: performance.createdAt,
+            duration: render.duration, lyrics: performance.lyrics, fileName: name, mixSettings: render.settings
+        )
+        let output = mixURL(updated)
+        var committed = false
+        defer { if !committed { try? FileManager.default.removeItem(at: output) } }
+        try Task.checkCancellation()
+        try FileManager.default.copyItem(at: render.url, to: output)
+        try Task.checkCancellation()
+        try JSONEncoder().encode(updated).write(to: manifest, options: .atomic)
+        committed = true
+        try? FileManager.default.removeItem(at: mixURL(performance))
+        return updated
     }
 
     func performances() throws -> [SingingPerformance] {

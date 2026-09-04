@@ -183,6 +183,12 @@ final class SingingRecordingController: ObservableObject {
         } catch { errorText = "删除演唱失败：\(error.localizedDescription)" }
     }
 
+    func didSaveAdjustments(_ performance: SingingPerformance) {
+        if let index = performances.firstIndex(where: { $0.id == performance.id }) {
+            performances[index] = performance
+        }
+    }
+
     func handleBackground() { handleInterruption("应用已进入后台，录音已结束。") }
 
     private func handleInterruption(_ message: String) {

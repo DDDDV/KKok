@@ -118,6 +118,16 @@ final class KaraokeViewRenderingTests: XCTestCase {
             PerformanceReviewView(performance: performance, store: store, playback: playback),
             name: "Singing-review-393x852"
         )
+        try await attach(
+            PerformanceReviewView(performance: performance, store: store, playback: playback)
+                .environment(\.dynamicTypeSize, .xxxLarge),
+            name: "Singing-editor-compact-large-type", size: CGSize(width: 375, height: 667)
+        )
+        try FileManager.default.removeItem(at: store.accompanimentURL(performance.id))
+        try await attach(
+            PerformanceReviewView(performance: performance, store: store, playback: playback),
+            name: "Singing-review-legacy-missing-backing"
+        )
     }
 
     @MainActor
