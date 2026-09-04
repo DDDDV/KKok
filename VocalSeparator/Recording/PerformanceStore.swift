@@ -91,7 +91,7 @@ struct PerformanceStore: Sendable {
                                    settings: settings, url: output, duration: duration)
     }
 
-    /// Copy the exact auditioned render, then atomically publish its manifest.
+    /// Copy the rendered adjustments, then atomically publish their manifest.
     /// Until that commit, every failure leaves the previous saved mix readable.
     func save(_ render: RenderedPerformance, replacing performance: SingingPerformance) throws -> SingingPerformance {
         try render.settings.validate()

@@ -11,9 +11,10 @@ final class AudioPlaybackController: NSObject, ObservableObject {
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var errorText: String?
+    var performanceSettings: PerformanceMixSettings? { (player as? PerformancePreviewPlayer)?.settings }
 
     var playingURL: URL? { isPlaying ? currentURL : nil }
-    private var player: SynchronizedStemPlayer?
+    private var player: (any AudioPlaybackTransport)?
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
     private var resumeAfterScrubbing = false
@@ -46,9 +47,29 @@ final class AudioPlaybackController: NSObject, ObservableObject {
     }
 
     func load(_ url: URL, vocalsURL: URL? = nil, preservingTime: Bool = false) throws {
-        guard currentURL != url || currentVocalsURL != vocalsURL || player == nil else { return }
+        guard currentURL != url || currentVocalsURL != vocalsURL || !(player is SynchronizedStemPlayer) else { return }
         let next = try SynchronizedStemPlayer(accompanimentURL: url, vocalsURL: vocalsURL)
         let time = preservingTime ? currentTime : 0
+        install(next, url: url, vocalsURL: vocalsURL, time: time)
+    }
+
+    func loadPerformance(_ url: URL, microphoneURL: URL, accompanimentURL: URL,
+                         settings: PerformanceMixSettings) throws {
+        if currentURL == url, let preview = player as? PerformancePreviewPlayer {
+            try preview.update(settings)
+            return
+        }
+        let next = try PerformancePreviewPlayer(microphoneURL: microphoneURL,
+                                               accompanimentURL: accompanimentURL, settings: settings)
+        install(next, url: url)
+    }
+
+    func updatePerformanceSettings(_ settings: PerformanceMixSettings) throws {
+        try (player as? PerformancePreviewPlayer)?.update(settings)
+    }
+
+    private func install(_ next: any AudioPlaybackTransport, url: URL, vocalsURL: URL? = nil,
+                         time: TimeInterval = 0) {
         stop()
         next.onCompletion = { [weak self, weak next] success in
             guard let self, let next, self.player === next else { return }
@@ -78,7 +99,7 @@ final class AudioPlaybackController: NSObject, ObservableObject {
 
     func setVocalsEnabled(_ enabled: Bool) {
         vocalsEnabled = enabled && currentVocalsURL != nil
-        player?.vocalsEnabled = vocalsEnabled
+        (player as? SynchronizedStemPlayer)?.vocalsEnabled = vocalsEnabled
     }
 
     func play() throws {

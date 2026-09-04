@@ -55,6 +55,7 @@
 		AC6CC086A3F937B78D2FAACB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 459FBBAAAD6684687726004C /* ContentView.swift */; };
 		B2D3247EF6511E3B66C295D5 /* SongDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCB0EF1E6D71E025FD9754C /* SongDetailView.swift */; };
 		B8B7506913A9A0BDCDA88A45 /* HTDemucs_CoreML_FP16.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */; };
+		C2A2F37CBFB537C47B367560 /* PerformancePreviewPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03CCD73B835272F1CB3D385 /* PerformancePreviewPlayer.swift */; };
 		C3D28EFE1BF6A8D5DE2B3703 /* LibrarySupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A398A1C7E7B0826ADC54F5F1 /* LibrarySupportingViews.swift */; };
 		C94353A0CE3FC190DF977722 /* StudioDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B4BEC62C0366FE85744042 /* StudioDesign.swift */; };
 		C9B55F6E3C2602D6D7E9CC9B /* RollingOverlapAddWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C29025CE508DFFF375D9F26 /* RollingOverlapAddWriter.swift */; };
@@ -145,6 +146,7 @@
 		E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsModelRunner.swift; sourceTree = "<group>"; };
 		EE80444CDFFCF32598130B31 /* SongLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongLibraryTests.swift; sourceTree = "<group>"; };
 		EF17D1154DF72245C7971A1E /* HTDemucsContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsContract.swift; sourceTree = "<group>"; };
+		F03CCD73B835272F1CB3D385 /* PerformancePreviewPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformancePreviewPlayer.swift; sourceTree = "<group>"; };
 		F1B4BEC62C0366FE85744042 /* StudioDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioDesign.swift; sourceTree = "<group>"; };
 		F45B93C2B342906E5C67653B /* tone.m4a */ = {isa = PBXFileReference; path = tone.m4a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -262,6 +264,7 @@
 				3E430204FD20AD896D6E7028 /* PerformanceEditor.swift */,
 				626E688554B1D726435E8020 /* PerformanceMixer.swift */,
 				17C7ECBC1419C59EA0C6F7A3 /* PerformanceMixSettings.swift */,
+				F03CCD73B835272F1CB3D385 /* PerformancePreviewPlayer.swift */,
 				2EED44CBE2907B826F9153DE /* PerformanceStore.swift */,
 				49D35B68D477E9BE68A57A1C /* SingingRecordingController.swift */,
 			);
@@ -502,6 +505,7 @@
 				884FB021B4A57B7442C2B23C /* PerformanceEditor.swift in Sources */,
 				1A8C07533C471677D3B13E33 /* PerformanceMixSettings.swift in Sources */,
 				DC7EB1548AD682962549A1B0 /* PerformanceMixer.swift in Sources */,
+				C2A2F37CBFB537C47B367560 /* PerformancePreviewPlayer.swift in Sources */,
 				45C64A5F8BA8F141A7A58A65 /* PerformanceReviewView.swift in Sources */,
 				2E1B164F7834BE42D12A13C9 /* PerformanceStore.swift in Sources */,
 				C9B55F6E3C2602D6D7E9CC9B /* RollingOverlapAddWriter.swift in Sources */,

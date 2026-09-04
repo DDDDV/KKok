@@ -3,14 +3,15 @@ import Foundation
 
 @MainActor
 final class PerformanceEditor: ObservableObject {
-    enum Operation { case preview, save }
+    enum Operation { case save }
     @Published private(set) var performance: SingingPerformance
     @Published var settings: PerformanceMixSettings {
         didSet {
             if oldValue != settings {
-                playback.pause()
                 errorText = nil
                 didSave = false
+                do { try playback.updatePerformanceSettings(settings) }
+                catch { errorText = error.localizedDescription }
             }
         }
     }
@@ -30,10 +31,6 @@ final class PerformanceEditor: ObservableObject {
     var isBusy: Bool { operation != nil }
     var hasChanges: Bool { settings != performance.settings }
     var savedURL: URL { store.mixURL(performance) }
-    var auditionURL: URL? {
-        if preview?.settings == settings { return preview?.url }
-        return hasChanges ? nil : savedURL
-    }
 
     init(performance: SingingPerformance, store: PerformanceStore, playback: AudioPlaybackController,
          onSave: @escaping (SingingPerformance) -> Void = { _ in }) {
@@ -46,30 +43,30 @@ final class PerformanceEditor: ObservableObject {
     }
 
     func load() {
-        do { try playback.load(savedURL) }
+        do { try loadPlayback() }
         catch { errorText = error.localizedDescription }
+    }
+
+    private func loadPlayback() throws {
+        if canEdit {
+            try playback.loadPerformance(savedURL, microphoneURL: store.microphoneURL(performance.id),
+                                         accompanimentURL: store.accompanimentURL(performance.id), settings: settings)
+        } else {
+            try playback.load(savedURL)
+        }
     }
 
     func audition() async {
         guard !isBusy else { return }
         errorText = nil
-        let time = playback.currentTime
-        if let url = auditionURL {
-            do { try playback.toggle(url) }
-            catch { errorText = error.localizedDescription }
-            return
-        }
-        playback.pause()
-        let id = begin(.preview)
-        defer { end(id) }
         do {
-            let render = try await renderCurrentSettings()
-            guard operationID == id else { return }
-            try playback.load(render.url)
-            playback.seek(to: time)
-            try playback.play()
+            if playback.isPlaying { playback.pause() }
+            else {
+                try loadPlayback()
+                try playback.play()
+            }
         } catch {
-            if operationID == id { errorText = "试听失败：\(error.localizedDescription)" }
+            errorText = "试听失败：\(error.localizedDescription)"
         }
     }
 
@@ -94,7 +91,7 @@ final class PerformanceEditor: ObservableObject {
             guard operationID == id else { return }
             didSave = true
             do {
-                try playback.load(store.mixURL(saved))
+                try loadPlayback()
                 playback.seek(to: time)
             } catch {
                 playback.stop()
@@ -139,7 +136,6 @@ final class PerformanceEditor: ObservableObject {
 
     private func renderCurrentSettings() async throws -> RenderedPerformance {
         if let preview, preview.settings == settings { return preview }
-        playback.stop()
         clearPreview()
         try FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
         let output = previewDirectory.appendingPathComponent("试听.wav")

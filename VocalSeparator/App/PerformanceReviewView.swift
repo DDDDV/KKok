@@ -35,7 +35,7 @@ struct PerformanceReviewView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if editor.isBusy {
-                        ProgressView(editor.operation == .save ? "正在保存调整…" : "正在生成试听…")
+                        ProgressView("正在保存调整…")
                             .frame(maxWidth: .infinity)
                     }
                     if let error = editor.errorText ?? playback.errorText {
@@ -114,7 +114,7 @@ struct PerformanceReviewView: View {
                 Text(Duration.seconds(editor.performance.duration), format: .time(pattern: .minuteSecond))
             }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             Button { Task { await editor.audition() } } label: {
-                Label(playback.isPlaying ? "暂停试听" : editor.hasChanges ? "试听调整" : "回放我的演唱",
+                Label(playback.isPlaying ? "暂停试听" : "播放试听",
                       systemImage: playback.isPlaying ? "pause.fill" : "play.fill")
                     .frame(maxWidth: .infinity)
             }.buttonStyle(SecondaryActionButtonStyle()).disabled(editor.isBusy)
@@ -148,7 +148,7 @@ struct PerformanceReviewView: View {
                 }
             }
             HStack {
-                Text("调整后点击试听，音效仅作用于你的人声。")
+                Text("播放时调整即可实时听到变化，音效仅作用于你的人声。")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 4)
                 Button("恢复原声") { editor.settings = PerformanceMixSettings() }

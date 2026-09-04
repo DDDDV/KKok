@@ -1,9 +1,21 @@
 import AVFoundation
 
+@MainActor
+protocol AudioPlaybackTransport: AnyObject {
+    var currentTime: TimeInterval { get }
+    var duration: TimeInterval { get }
+    var onCompletion: ((Bool) -> Void)? { get set }
+    var onError: ((Error?) -> Void)? { get set }
+    func play() -> Bool
+    func pause()
+    func seek(to time: TimeInterval)
+    func stop()
+}
+
 /// Both stems run on the same device clock, including while vocals are muted.
 /// Changing the guide vocal never reschedules or replaces the accompaniment.
 @MainActor
-final class SynchronizedStemPlayer: NSObject, AVAudioPlayerDelegate {
+final class SynchronizedStemPlayer: NSObject, AVAudioPlayerDelegate, AudioPlaybackTransport {
     let accompaniment: AVAudioPlayer
     let vocals: AVAudioPlayer?
     var onCompletion: ((Bool) -> Void)?
@@ -31,7 +43,9 @@ final class SynchronizedStemPlayer: NSObject, AVAudioPlayerDelegate {
         vocals?.volume = 0
     }
 
-    func play(atTime time: TimeInterval? = nil) -> Bool {
+    func play() -> Bool { play(atTime: nil) }
+
+    func play(atTime time: TimeInterval?) -> Bool {
         let start = time ?? deviceCurrentTime + 0.05
         guard accompaniment.play(atTime: start), vocals?.play(atTime: start) ?? true else {
             pause()
