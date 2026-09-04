@@ -1,12 +1,12 @@
 import Foundation
 import CoreFoundation
 
-struct LyricWord: Equatable, Sendable {
+struct LyricWord: Codable, Equatable, Sendable {
     let start: TimeInterval
     let text: String
 }
 
-struct LyricLine: Equatable, Identifiable, Sendable {
+struct LyricLine: Codable, Equatable, Identifiable, Sendable {
     let id: Int
     let start: TimeInterval
     let text: String
@@ -14,7 +14,7 @@ struct LyricLine: Equatable, Identifiable, Sendable {
     let end: TimeInterval?
 }
 
-struct TimedLyrics: Equatable, Sendable {
+struct TimedLyrics: Codable, Equatable, Sendable {
     let lines: [LyricLine]
     var isWordTimed: Bool { lines.contains { !$0.words.isEmpty } }
 

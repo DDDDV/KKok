@@ -4,16 +4,20 @@ struct KaraokePlayerView: View {
     let result: SeparationResult
     let lyrics: TimedLyrics?
     @ObservedObject var playback: AudioPlaybackController
+    @ObservedObject var recording: SingingRecordingController
+    let startSinging: () -> Void
     let togglePlayback: (URL) -> Void
     @State private var usesVocals = false
     @State private var selectionError: String?
 
     private var selectedURL: URL { usesVocals ? result.vocalsURL : result.accompanimentURL }
-    private var activeIDs: [Int] { lyrics?.activeLineIDs(at: playback.currentTime) ?? [] }
+    private var isRecording: Bool { recording.state == .recording }
+    private var clockTime: TimeInterval { isRecording ? recording.currentTime : playback.currentTime }
+    private var clockDuration: TimeInterval { isRecording ? recording.duration : playback.duration }
 
     var body: some View {
         VStack(spacing: 18) {
-            Label("开始唱歌", systemImage: "mic.fill")
+            Label(isRecording ? "正在录制演唱" : "开始唱歌", systemImage: "mic.fill")
                 .font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -22,7 +26,9 @@ struct KaraokePlayerView: View {
                 Text("人声 · 跟唱").tag(true)
             }
             .pickerStyle(.segmented)
+            .disabled(recording.isBusy)
             .onChange(of: usesVocals) { _, _ in
+                guard !recording.isBusy else { return }
                 let wasPlaying = playback.isPlaying
                 do {
                     try playback.load(selectedURL, preservingTime: true)
@@ -31,31 +37,33 @@ struct KaraokePlayerView: View {
                 } catch { selectionError = error.localizedDescription }
             }
 
+            recordingControls
+
             if let lyrics {
-                lyricsDisplay(lyrics)
+                KaraokeLyricsView(lyrics: lyrics, currentTime: clockTime)
             } else {
                 ContentUnavailableView(
                     "伴奏已就绪", systemImage: "music.mic",
-                    description: Text("可以直接唱歌，或在上方添加歌词。")
+                    description: Text(isRecording ? "正在跟随伴奏录制你的声音" : "点击开始演唱，录下自己的歌声。也可在上方添加歌词。")
                 )
                 .frame(height: 220)
             }
 
             VStack(spacing: 4) {
                 Slider(value: Binding(
-                    get: { playback.currentTime },
+                    get: { clockTime },
                     set: { playback.seek(to: $0) }
-                ), in: 0...max(playback.duration, 0.001)) { editing in
+                ), in: 0...max(clockDuration, 0.001)) { editing in
                     if editing { playback.beginScrubbing() } else { playback.endScrubbing() }
                 }
                 .tint(.pink)
-                .disabled(playback.currentURL == nil)
+                .disabled(playback.currentURL == nil || recording.isBusy)
                 .accessibilityLabel("播放进度")
 
                 HStack {
-                    Text(timeLabel(playback.currentTime))
+                    Text(timeLabel(clockTime))
                     Spacer()
-                    Text(timeLabel(playback.duration))
+                    Text(timeLabel(clockDuration))
                 }
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -81,6 +89,7 @@ struct KaraokePlayerView: View {
                 .accessibilityLabel("前进十秒")
             }
             .buttonStyle(.plain)
+            .disabled(recording.isBusy)
 
             if let error = selectionError ?? playback.errorText {
                 Text(error).font(.caption).foregroundStyle(.red)
@@ -91,51 +100,55 @@ struct KaraokePlayerView: View {
                 ShareLink(item: result.vocalsURL) { Label("保存人声", systemImage: "square.and.arrow.up") }
             }
             .font(.caption)
+            .disabled(recording.isBusy)
         }
         .padding(18)
         .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 20))
+        .onChange(of: recording.state) { _, state in
+            if state == .preparing { usesVocals = false }
+        }
         .task(id: result.accompanimentURL) {
             usesVocals = false
+            guard !recording.isBusy else { return }
             do { try playback.load(result.accompanimentURL) }
             catch { selectionError = error.localizedDescription }
         }
     }
 
-    private func lyricsDisplay(_ lyrics: TimedLyrics) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 22) {
-                    ForEach(lyrics.lines) { line in
-                        lyricText(line, active: activeIDs.contains(line.id))
-                            .font(.title3.weight(activeIDs.contains(line.id) ? .bold : .medium))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .id(line.id)
-                            .accessibilityAddTraits(activeIDs.contains(line.id) ? .isSelected : [])
-                    }
+    private var recordingControls: some View {
+        VStack(spacing: 12) {
+            if isRecording {
+                ProgressView(value: Double(recording.level))
+                    .tint(.pink)
+                    .accessibilityLabel("麦克风音量")
+                Button { recording.finish() } label: {
+                    Label("结束演唱", systemImage: "stop.circle.fill")
+                        .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, 100)
-                .padding(.horizontal, 8)
-            }
-            .frame(height: 300)
-            .onChange(of: activeIDs, initial: true) { _, ids in
-                withAnimation(.easeOut(duration: 0.18)) {
-                    proxy.scrollTo(ids.first ?? lyrics.scrollLineID(at: playback.currentTime), anchor: .center)
+                .buttonStyle(PrimaryActionButtonStyle())
+                Text("正在录音 · 伴奏结束后会自动保存")
+                    .font(.caption).foregroundStyle(.pink)
+            } else if recording.state == .preparing || recording.state == .mixing {
+                ProgressView(recording.state == .mixing ? "正在保存演唱…" : "正在准备麦克风…")
+                    .frame(maxWidth: .infinity)
+            } else {
+                Button(action: startSinging) {
+                    Label("开始演唱", systemImage: "mic.fill")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(PrimaryActionButtonStyle())
+                .disabled(recording.isBusy)
+                Text("从头播放伴奏并录音。建议使用有线耳机，避免外放伴奏重复录入；蓝牙耳机可能有延迟。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            .onChange(of: lyrics) { _, _ in
-                proxy.scrollTo(activeIDs.first ?? lyrics.scrollLineID(at: playback.currentTime), anchor: .center)
+            if let error = recording.errorText {
+                Text(error).font(.caption).foregroundStyle(.red)
             }
-        }
-    }
-
-    private func lyricText(_ line: LyricLine, active: Bool) -> Text {
-        guard !line.words.isEmpty, active else {
-            return Text(line.text.isEmpty ? "♪" : line.text)
-                .foregroundColor(active ? .pink : .white.opacity(0.45))
-        }
-        return line.words.reduce(Text("")) { text, word in
-            text + Text(word.text).foregroundColor(word.start <= playback.currentTime ? .pink : .white)
+            if recording.permissionDenied {
+                Button("打开麦克风设置") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }.font(.subheadline)
+            }
         }
     }
 

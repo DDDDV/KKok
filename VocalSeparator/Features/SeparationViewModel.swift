@@ -27,6 +27,8 @@ final class SeparationViewModel: ObservableObject {
     @Published var alert: UserAlert?
 
     let playback = AudioPlaybackController()
+    let recording: SingingRecordingController
+    private var recordingChanges: AnyCancellable?
 
     private let engine: any StemSeparating
     private let transcriptionCoordinator: PostSeparationTranscriptionCoordinator
@@ -34,15 +36,20 @@ final class SeparationViewModel: ObservableObject {
 
     init(
         engine: any StemSeparating = StemSeparationEngine(),
-        transcriber: any VocalTranscribing = WhisperVocalTranscriber()
+        transcriber: any VocalTranscribing = WhisperVocalTranscriber(),
+        recording: SingingRecordingController? = nil
     ) {
         self.engine = engine
+        self.recording = recording ?? SingingRecordingController()
         transcriptionCoordinator = PostSeparationTranscriptionCoordinator(
             transcriber: transcriber
         )
         // Results are intentionally session-scoped. Clear stale/partial jobs
         // left by an earlier process termination before accepting new work.
         try? AudioImportStore.resetManagedStorage()
+        recordingChanges = self.recording.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
     }
 
     var isProcessing: Bool {
@@ -50,11 +57,11 @@ final class SeparationViewModel: ObservableObject {
     }
 
     var canStart: Bool {
-        selectedAudio != nil && !isImporting && !isProcessing
+        selectedAudio != nil && !isImporting && !isProcessing && !recording.isBusy
     }
 
     var canRetryTranscription: Bool {
-        result != nil && !isImporting && !isProcessing
+        result != nil && !isImporting && !isProcessing && !recording.isBusy
     }
 
     var modelDownloadProgress: Double? {
@@ -69,7 +76,7 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func handleFilesImport(_ importResult: Result<[URL], Error>) {
-        guard !isImporting, !isProcessing else { return }
+        guard !isImporting, !isProcessing, !recording.isBusy else { return }
         switch importResult {
         case .failure(let error):
             if (error as NSError).code != NSUserCancelledError {
@@ -221,14 +228,22 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func cancelForBackground() {
-        if !isProcessing { playback.pause() }
+        if !recording.isBusy, !isProcessing { playback.pause() }
+        recording.handleBackground()
         guard isProcessing else { return }
         processingTask?.cancel()
         statusText = "应用已进入后台，正在停止并清理…"
     }
 
+    func startSinging() {
+        guard let result, !isImporting, !isProcessing, !recording.isBusy else { return }
+        Task {
+            await recording.start(result: result, lyrics: importedLyrics?.lyrics, playback: playback)
+        }
+    }
+
     func togglePlayback(_ url: URL) {
-        guard !isImporting, !isProcessing else { return }
+        guard !isImporting, !isProcessing, !recording.isBusy else { return }
         do {
             try playback.toggle(url)
         } catch {
@@ -237,7 +252,7 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func removeLyrics() {
-        guard !isImporting, !isProcessing else { return }
+        guard !isImporting, !isProcessing, !recording.isBusy else { return }
         importedLyrics = nil
     }
 

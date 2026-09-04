@@ -7,6 +7,9 @@ struct ContentView: View {
     @StateObject private var viewModel = SeparationViewModel()
     @State private var isShowingLegal = false
     @State private var isConfirmingTranscription = false
+    @State private var reviewingPerformance: SingingPerformance?
+    @State private var isDiscardingRecording = false
+    @State private var deletingPerformance: SingingPerformance?
 
     var body: some View {
         NavigationStack {
@@ -35,6 +38,7 @@ struct ContentView: View {
                             resultCards(result)
                         }
 
+                        performanceLibrary
                         privacyNote
                     }
                     .padding(.horizontal, 20)
@@ -89,6 +93,27 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isShowingLegal) {
             LegalView()
+        }
+        .sheet(item: $reviewingPerformance) { performance in
+            PerformanceReviewView(performance: performance, store: viewModel.recording.store, playback: viewModel.playback)
+        }
+        .onChange(of: viewModel.recording.completedPerformance) { _, performance in
+            reviewingPerformance = performance
+        }
+        .confirmationDialog("丢弃未保存的录音？", isPresented: $isDiscardingRecording, titleVisibility: .visible) {
+            Button("丢弃录音", role: .destructive) { viewModel.recording.discardPending() }
+            Button("取消", role: .cancel) {}
+        }
+        .confirmationDialog("删除这次演唱？", isPresented: Binding(
+            get: { deletingPerformance != nil }, set: { if !$0 { deletingPerformance = nil } }
+        ), titleVisibility: .visible) {
+            Button("删除演唱", role: .destructive) {
+                if let performance = deletingPerformance {
+                    viewModel.recording.delete(performance, playback: viewModel.playback)
+                }
+                deletingPerformance = nil
+            }
+            Button("取消", role: .cancel) { deletingPerformance = nil }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
@@ -180,7 +205,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SecondaryActionButtonStyle())
-                .disabled(viewModel.isImporting || viewModel.isProcessing)
+                .disabled(viewModel.isImporting || viewModel.isProcessing || viewModel.recording.isBusy)
 
                 Button(action: viewModel.startSeparation) {
                     Label("开始分离", systemImage: "wand.and.stars")
@@ -204,7 +229,7 @@ struct ContentView: View {
                     }
                 }
                 .font(.subheadline)
-                .disabled(viewModel.isImporting || viewModel.isProcessing)
+                .disabled(viewModel.isImporting || viewModel.isProcessing || viewModel.recording.isBusy)
             }
 
             if let lyrics = viewModel.importedLyrics {
@@ -272,6 +297,8 @@ struct ContentView: View {
                 result: result,
                 lyrics: viewModel.importedLyrics?.lyrics,
                 playback: viewModel.playback,
+                recording: viewModel.recording,
+                startSinging: viewModel.startSinging,
                 togglePlayback: viewModel.togglePlayback
             )
             .disabled(viewModel.isImporting || viewModel.isProcessing)
@@ -292,6 +319,56 @@ struct ContentView: View {
             )
         }
         .padding(.top, 4)
+    }
+
+    private var performanceLibrary: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if viewModel.recording.state == .needsRecovery {
+                Label("有一段录音尚未保存", systemImage: "exclamationmark.circle")
+                    .font(.headline)
+                if let error = viewModel.recording.errorText {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+                HStack {
+                    Button("重试保存", action: viewModel.recording.retrySaving)
+                        .buttonStyle(PrimaryActionButtonStyle())
+                    Button("丢弃录音", role: .destructive) { isDiscardingRecording = true }
+                }
+            } else if viewModel.recording.state == .mixing && viewModel.result == nil {
+                ProgressView("正在保存演唱…")
+            }
+            if viewModel.result == nil, viewModel.recording.state == .idle, let error = viewModel.recording.errorText {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+            if let notice = viewModel.recording.notice {
+                Text(notice).font(.caption).foregroundStyle(.secondary)
+            }
+            if !viewModel.recording.performances.isEmpty {
+                Label("我的演唱", systemImage: "music.mic").font(.title3.bold())
+                ForEach(viewModel.recording.performances) { performance in
+                    HStack {
+                        Button { reviewingPerformance = performance } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "play.circle.fill").font(.title).foregroundStyle(.pink)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(performance.title).font(.headline).lineLimit(1)
+                                    Text(performance.createdAt, format: .dateTime.month().day().hour().minute())
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(Duration.seconds(performance.duration), format: .time(pattern: .minuteSecond))
+                                    .font(.caption.monospacedDigit())
+                            }.contentShape(Rectangle())
+                        }.buttonStyle(.plain)
+                        Button { deletingPerformance = performance } label: {
+                            Image(systemName: "trash").foregroundStyle(.secondary)
+                        }.accessibilityLabel("删除演唱：\(performance.title)")
+                    }
+                    .disabled(viewModel.recording.isBusy || viewModel.isImporting || viewModel.isProcessing)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var privacyNote: some View {
@@ -456,7 +533,7 @@ private struct LegalView: View {
     }
 }
 
-private struct PrimaryActionButtonStyle: ButtonStyle {
+struct PrimaryActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -476,7 +553,7 @@ private struct PrimaryActionButtonStyle: ButtonStyle {
     }
 }
 
-private struct SecondaryActionButtonStyle: ButtonStyle {
+struct SecondaryActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
