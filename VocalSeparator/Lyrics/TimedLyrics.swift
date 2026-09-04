@@ -64,7 +64,7 @@ struct TimedLyrics: Codable, Equatable, Sendable {
     }
 }
 
-struct ImportedLyrics: Equatable, Sendable {
+struct ImportedLyrics: Codable, Equatable, Sendable {
     let displayName: String
     let lyrics: TimedLyrics
 }

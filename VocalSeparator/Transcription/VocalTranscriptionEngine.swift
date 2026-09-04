@@ -1,7 +1,7 @@
 import Foundation
 import WhisperKit
 
-struct VocalTranscript: Equatable, Sendable {
+struct VocalTranscript: Codable, Equatable, Sendable {
     let text: String
     let languageCode: String?
 }

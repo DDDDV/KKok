@@ -12,20 +12,19 @@ struct PerformanceReviewView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 22) {
-                    Image(systemName: "waveform.circle.fill")
-                        .font(.system(size: 60)).foregroundStyle(.pink)
+                    Label("已保存到我的演唱", systemImage: "checkmark.circle.fill")
+                        .font(.caption).foregroundStyle(StudioTheme.mint)
+                    RecordArtwork(title: performance.title, size: 168, isPerformance: true)
+                        .shadow(color: .black.opacity(0.25), radius: 24, y: 14).padding(.vertical, 12)
                     Text(performance.title).font(.title2.bold()).multilineTextAlignment(.center)
                     Text("我的演唱 · 已包含伴奏")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    if let lyrics = performance.lyrics {
-                        KaraokeLyricsView(lyrics: lyrics, currentTime: playback.currentTime)
-                    }
                     Slider(value: Binding(
                         get: { playback.currentTime }, set: { playback.seek(to: $0) }
                     ), in: 0...max(playback.duration, 0.001)) { editing in
                         if editing { playback.beginScrubbing() } else { playback.endScrubbing() }
                     }
-                    .tint(.pink)
+                    .tint(StudioTheme.mint)
                     .disabled(playback.currentURL != url)
                     .accessibilityLabel("演唱回放进度")
                     HStack {
@@ -47,13 +46,19 @@ struct PerformanceReviewView: View {
                     ShareLink(item: store.microphoneURL(performance.id)) {
                         Label("仅导出我的录音", systemImage: "mic")
                     }.font(.subheadline)
-                    Text("演唱已保存在本机，可从首页“我的演唱”再次回放或导出。")
+                    if let lyrics = performance.lyrics {
+                        DisclosureGroup("查看同步歌词") {
+                            KaraokeLyricsView(lyrics: lyrics, currentTime: playback.currentTime, viewportHeight: 220)
+                        }.font(.subheadline)
+                    }
+                    Text("演唱已保存在本机，可在“我的演唱”中再次回放或导出。")
                         .font(.caption).foregroundStyle(.secondary)
                     if let error = errorText ?? playback.errorText {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
                 }.padding(24)
             }
+            .background(StudioTheme.stage)
             .navigationTitle("演唱回放")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }

@@ -27,7 +27,7 @@ enum AudioImportStore {
         }
     }
 
-    static func persist(_ externalURL: URL) throws -> ImportedAudio {
+    static func persist(_ externalURL: URL, root: URL = managedRootDirectory()) throws -> ImportedAudio {
         let accessed = externalURL.startAccessingSecurityScopedResource()
         defer {
             if accessed { externalURL.stopAccessingSecurityScopedResource() }
@@ -36,7 +36,8 @@ enum AudioImportStore {
             throw AudioPipelineError.unsupportedFormat
         }
 
-        let directory = try importsDirectory()
+        let directory = root.appendingPathComponent("Imports", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let safeName = FileNameSanitizer.sanitize(
             externalURL.deletingPathExtension().lastPathComponent
         )
@@ -70,12 +71,12 @@ enum AudioImportStore {
         return directory
     }
 
-    fileprivate static func managedRootDirectory() -> URL {
-        let caches = FileManager.default.urls(
-            for: .cachesDirectory,
+    static func managedRootDirectory() -> URL {
+        let support = FileManager.default.urls(
+            for: .applicationSupportDirectory,
             in: .userDomainMask
         )[0]
-        return caches.appendingPathComponent("VocalSeparator", isDirectory: true)
+        return support.appendingPathComponent("VocalSeparator", isDirectory: true)
     }
 }
 

@@ -146,7 +146,7 @@ final class TimedLyricsTests: XCTestCase {
     }
 
     @MainActor
-    func testSongAndLyricsImportIsAtomicAndReplacementClearsOldLyrics() async throws {
+    func testSongAndLyricsImportIsAtomicAndNewSongPreservesPreviousLibraryEntry() async throws {
         let lyric = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).lrc")
         let broken = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).lrc")
         defer {
@@ -171,7 +171,10 @@ final class TimedLyricsTests: XCTestCase {
         try await waitForImport(model)
         XCTAssertNil(model.importedLyrics)
         XCTAssertEqual(model.selectedAudio?.url.pathExtension, "flac")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(oldSong).url.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try XCTUnwrap(oldSong).url.path))
+        let previous = try XCTUnwrap(model.songs.first { model.library.audio(for: $0).url == oldSong?.url })
+        model.selectSong(previous)
+        XCTAssertEqual(model.importedLyrics?.lyrics.lines.first?.text, "配套歌词")
     }
 
     @MainActor

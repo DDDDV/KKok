@@ -3,6 +3,8 @@ import SwiftUI
 struct KaraokeLyricsView: View {
     let lyrics: TimedLyrics
     let currentTime: TimeInterval
+    var viewportHeight: CGFloat = 300
+    var immersive = false
     @ScaledMetric(relativeTo: .title3) private var fontSize: CGFloat = 20
     private var activeIDs: [Int] { lyrics.activeLineIDs(at: currentTime) }
 
@@ -12,17 +14,18 @@ struct KaraokeLyricsView: View {
                 LazyVStack(spacing: 22) {
                     ForEach(lyrics.lines) { line in
                         lyricText(line, active: activeIDs.contains(line.id))
-                            .font(.title3.weight(activeIDs.contains(line.id) ? .bold : .medium))
+                            .font(.system(size: immersive ? fontSize * 1.4 : fontSize,
+                                          weight: activeIDs.contains(line.id) ? .bold : .medium))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .id(line.id)
                             .accessibilityAddTraits(activeIDs.contains(line.id) ? .isSelected : [])
                     }
                 }
-                .padding(.vertical, 100)
+                .padding(.vertical, viewportHeight * 0.4)
                 .padding(.horizontal, 8)
             }
-            .frame(height: 300)
+            .frame(height: viewportHeight)
             .onChange(of: activeIDs, initial: true) { _, ids in
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(ids.first ?? lyrics.scrollLineID(at: currentTime), anchor: .center)
@@ -37,7 +40,7 @@ struct KaraokeLyricsView: View {
     @ViewBuilder
     private func lyricText(_ line: LyricLine, active: Bool) -> some View {
         if !line.words.isEmpty, active {
-            WordTimedLyricText(line: line, currentTime: currentTime, fontSize: fontSize)
+            WordTimedLyricText(line: line, currentTime: currentTime, fontSize: immersive ? fontSize * 1.4 : fontSize)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(line.text)
         } else {

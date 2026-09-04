@@ -25,28 +25,40 @@ final class SeparationViewModel: ObservableObject {
     @Published private(set) var progress = 0.0
     @Published private(set) var statusText = "导入歌曲，可同时选择对应歌词"
     @Published var alert: UserAlert?
+    @Published private(set) var songs: [LibrarySong] = []
+    @Published private(set) var selectedSongID: UUID?
+    @Published private(set) var isLibraryAvailable = true
+    let library: SongLibraryStore
 
     let playback = AudioPlaybackController()
     let recording: SingingRecordingController
     private var recordingChanges: AnyCancellable?
 
     private let engine: any StemSeparating
+    private let metadataExtractor: any SongMetadataExtracting
     private let transcriptionCoordinator: PostSeparationTranscriptionCoordinator
     private var processingTask: Task<Void, Never>?
 
     init(
         engine: any StemSeparating = StemSeparationEngine(),
         transcriber: any VocalTranscribing = WhisperVocalTranscriber(),
-        recording: SingingRecordingController? = nil
+        recording: SingingRecordingController? = nil,
+        library: SongLibraryStore = SongLibraryStore(),
+        metadataExtractor: any SongMetadataExtracting = SongMetadataExtractor()
     ) {
         self.engine = engine
+        self.library = library
+        self.metadataExtractor = metadataExtractor
         self.recording = recording ?? SingingRecordingController()
         transcriptionCoordinator = PostSeparationTranscriptionCoordinator(
             transcriber: transcriber
         )
-        // Results are intentionally session-scoped. Clear stale/partial jobs
-        // left by an earlier process termination before accepting new work.
-        try? AudioImportStore.resetManagedStorage()
+        do {
+            songs = try library.load()
+        } catch {
+            isLibraryAvailable = false
+            alert = UserAlert(title: "无法读取歌曲库", message: "歌曲文件仍保留在本机，请重启后重试。\(error.localizedDescription)")
+        }
         recordingChanges = self.recording.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -56,8 +68,106 @@ final class SeparationViewModel: ObservableObject {
         isSeparating || isTranscribing
     }
 
+    var canManageLibrary: Bool { isLibraryAvailable && !isImporting && !isProcessing && !recording.isBusy }
+    var selectedSong: LibrarySong? { songs.first { $0.id == selectedSongID } }
+    var separatedSongs: [LibrarySong] {
+        songs.filter { $0.separation != nil }.sorted {
+            ($0.separation?.createdAt ?? .distantPast) > ($1.separation?.createdAt ?? .distantPast)
+        }
+    }
+
+    func selectSong(_ song: LibrarySong) {
+        guard canManageLibrary, let current = songs.first(where: { $0.id == song.id }) else { return }
+        playback.stop()
+        selectedSongID = current.id
+        selectedAudio = library.audio(for: current)
+        importedLyrics = current.lyrics
+        result = library.result(for: current)
+        resetTranscription()
+        transcript = current.transcript
+        hasRequestedTranscription = transcript != nil
+        statusText = result == nil ? "歌曲已就绪，可以开始分离" : "伴奏已准备好，可以开始唱歌"
+        extractMetadataIfNeeded(for: current)
+    }
+
+    /// Older libraries have no metadata key. Inspect their managed source once on selection.
+    private func extractMetadataIfNeeded(for song: LibrarySong) {
+        guard song.metadata == nil else { return }
+        isImporting = true
+        statusText = "正在读取封面与歌词…"
+        let library = library
+        let extractor = metadataExtractor
+        Task { [weak self] in
+            guard let self else { return }
+            defer { isImporting = false }
+            do {
+                let updated = try await Task.detached(priority: .userInitiated) {
+                    let extracted = await extractor.extract(from: library.audio(for: song).url)
+                    return try library.applying(extracted, to: song)
+                }.value
+                do {
+                    try updateSong(song.id) {
+                        $0.metadata = updated.metadata
+                        $0.lyrics = updated.lyrics
+                    }
+                } catch {
+                    try? library.removeArtwork(for: updated)
+                    throw error
+                }
+                if selectedSongID == song.id { importedLyrics = selectedSong?.lyrics }
+                statusText = result == nil ? "歌曲已就绪，可以开始分离" : "伴奏已准备好，可以开始唱歌"
+            } catch { present(error: error, title: "无法保存歌曲信息") }
+        }
+    }
+
+    func renameSong(_ song: LibrarySong, title: String) {
+        guard canManageLibrary else { return }
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        do {
+            try updateSong(song.id) { $0.title = title }
+            if selectedSongID == song.id, let current = selectedSong { selectSong(current) }
+        } catch { present(error: error, title: "重命名失败") }
+    }
+
+    func deleteSong(_ song: LibrarySong, separationOnly: Bool) {
+        guard canManageLibrary else { return }
+        do {
+            playback.stop()
+            var updated = songs
+            if separationOnly {
+                guard let index = updated.firstIndex(where: { $0.id == song.id }) else { return }
+                updated[index].separation = nil
+                updated[index].transcript = nil
+            } else {
+                updated.removeAll { $0.id == song.id }
+            }
+            try library.save(updated)
+            songs = updated
+            if selectedSongID == song.id {
+                if let current = selectedSong { selectSong(current) }
+                else {
+                    selectedSongID = nil
+                    selectedAudio = nil
+                    importedLyrics = nil
+                    result = nil
+                    resetTranscription()
+                }
+            }
+            try library.removeFiles(for: song, includingSource: !separationOnly)
+        } catch { present(error: error, title: "删除未完全完成") }
+    }
+
+    private func updateSong(_ id: UUID, change: (inout LibrarySong) -> Void) throws {
+        guard let index = songs.firstIndex(where: { $0.id == id }) else { throw CocoaError(.fileNoSuchFile) }
+        var updated = songs
+        change(&updated[index])
+        try library.save(updated)
+        songs = updated
+    }
+
     var canStart: Bool {
-        selectedAudio != nil && !isImporting && !isProcessing && !recording.isBusy
+        selectedAudio != nil && canManageLibrary
     }
 
     var canRetryTranscription: Bool {
@@ -76,7 +186,7 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func handleFilesImport(_ importResult: Result<[URL], Error>) {
-        guard !isImporting, !isProcessing, !recording.isBusy else { return }
+        guard canManageLibrary else { return }
         switch importResult {
         case .failure(let error):
             if (error as NSError).code != NSUserCancelledError {
@@ -85,38 +195,58 @@ final class SeparationViewModel: ObservableObject {
         case .success(let urls):
             guard !urls.isEmpty else { return }
             let lyricsOnly = isSelectingLyrics
+            isSelectingLyrics = false
             let lyricURLs = lyricsOnly ? urls : urls.filter {
                 LyricsImportStore.supportedExtensions.contains($0.pathExtension.lowercased())
             }
             let audioURLs = lyricsOnly ? [] : urls.filter { !lyricURLs.contains($0) }
-            guard lyricURLs.count <= 1, audioURLs.count <= 1,
+            guard lyricURLs.count <= 1, (lyricURLs.isEmpty || audioURLs.count <= 1),
                   (!audioURLs.isEmpty || (!lyricURLs.isEmpty && selectedAudio != nil)) else {
-                alert = UserAlert(title: "请选择一首歌曲", message: "一次可导入一首歌曲和一份对应歌词；也可选好歌曲后单独添加歌词。")
+                alert = UserAlert(title: "请确认歌词对应的歌曲", message: "可一次导入多首歌曲；带歌词导入时，请选择一首歌曲和一份对应歌词。")
                 return
             }
             isImporting = true
-            statusText = "正在读取并验证所选文件…"
+            statusText = "正在导入歌曲并读取封面与歌词…"
             if audioURLs.isEmpty { playback.pause() } else { playback.stop() }
-            let previousAudio = selectedAudio
-            let previousResult = result
+            let library = library
+            let extractor = metadataExtractor
 
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    // Validate the entire selection before replacing the current song.
-                    let (audio, lyrics) = try await Task.detached(priority: .userInitiated) {
+                    // Validate the whole batch before publishing it to the library.
+                    let (additions, lyrics) = try await Task.detached(priority: .userInitiated) {
                         let lyrics = try lyricURLs.first.map { try LyricsImportStore.load($0) }
-                        let audio = try audioURLs.first.map { try AudioImportStore.persist($0) }
-                        return (audio, lyrics)
+                        var audios: [ImportedAudio] = []
+                        var additions: [LibrarySong] = []
+                        do {
+                            for url in audioURLs {
+                                let audio = try AudioImportStore.persist(url, root: library.root)
+                                audios.append(audio)
+                                let extracted = await extractor.extract(from: audio.url)
+                                additions.append(try library.applying(extracted, to: LibrarySong(audio: audio, lyrics: lyrics)))
+                            }
+                            return (additions, lyrics)
+                        } catch {
+                            for audio in audios { try? FileManager.default.removeItem(at: audio.url) }
+                            for song in additions { try? library.removeArtwork(for: song) }
+                            throw error
+                        }
                     }.value
-                    if let audio {
-                        if let previousAudio { try? AudioImportStore.remove(previousAudio) }
-                        if let previousResult { try? OutputStore.remove(previousResult) }
-                        selectedAudio = audio
+                    if let first = additions.first {
+                        do { try library.save(additions + songs) }
+                        catch {
+                            for song in additions { try? library.removeFiles(for: song, includingSource: true) }
+                            throw error
+                        }
+                        songs = additions + songs
+                        selectedSongID = additions.first?.id
+                        selectedAudio = library.audio(for: first)
                         result = nil
-                        importedLyrics = lyrics
+                        importedLyrics = first.lyrics
                         resetTranscription()
                     } else {
+                        if let id = selectedSongID { try updateSong(id) { $0.lyrics = lyrics } }
                         importedLyrics = lyrics
                     }
                     statusText = result == nil ? "已导入，点击开始分离" : "歌词已更新，可以开始唱歌"
@@ -136,8 +266,8 @@ final class SeparationViewModel: ObservableObject {
     func startSeparation() {
         guard let selectedAudio, canStart else { return }
         playback.stop()
-        if let result { try? OutputStore.remove(result) }
-        result = nil
+        guard let songID = selectedSongID else { return }
+        let previousSong = selectedSong
         resetTranscription()
         progress = 0
         isSeparating = true
@@ -149,11 +279,26 @@ final class SeparationViewModel: ObservableObject {
             do {
                 let separationResult = try await engine.separate(
                     sourceURL: selectedAudio.url,
-                    outputRoot: OutputStore.separationsDirectory()
+                    outputRoot: library.separationsDirectory
                 ) { [weak self] update in
                     await self?.apply(update)
                 }
-                result = separationResult
+                do {
+                    try Task.checkCancellation()
+                    try updateSong(songID) {
+                        $0.separation = SavedSeparation(separationResult)
+                        $0.transcript = nil
+                    }
+                } catch {
+                    var orphan = LibrarySong(audio: selectedAudio, lyrics: nil)
+                    orphan.separation = SavedSeparation(separationResult)
+                    try? library.removeFiles(for: orphan, includingSource: false)
+                    throw error
+                }
+                result = self.selectedSong.flatMap { self.library.result(for: $0) }
+                if let previousSong, previousSong.separation != nil {
+                    try? library.removeFiles(for: previousSong, includingSource: false)
+                }
                 progress = 1
                 statusText = "伴奏已准备好，可以开始唱歌"
             } catch is CancellationError {
@@ -192,6 +337,7 @@ final class SeparationViewModel: ObservableObject {
                     await self?.apply(stage)
                 }
                 try Task.checkCancellation()
+                if let id = selectedSongID { try updateSong(id) { $0.transcript = completedTranscript } }
                 transcript = completedTranscript
                 statusText = "分离与转写完成"
             } catch is CancellationError {
@@ -262,7 +408,10 @@ final class SeparationViewModel: ObservableObject {
 
     func removeLyrics() {
         guard !isImporting, !isProcessing, !recording.isBusy else { return }
-        importedLyrics = nil
+        do {
+            if let id = selectedSongID { try updateSong(id) { $0.lyrics = nil } }
+            importedLyrics = nil
+        } catch { present(error: error, title: "无法移除歌词") }
     }
 
     private func apply(_ update: SeparationProgress) {
