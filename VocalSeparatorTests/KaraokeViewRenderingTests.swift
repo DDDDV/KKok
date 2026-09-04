@@ -6,14 +6,67 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testWordSweepRenderingWrapsAndTracksPauseAndBackwardSeek() throws {
+        let line = try LRCParser.parse("[00:01]跟[00:02]着[00:03]音乐[00:05]轻轻唱 Hello 世界 👨‍👩‍👧‍👦[00:10]").lines[0]
+        let view = KaraokeWordTextView()
+        func render(at time: Double) -> UIImage {
+            view.configure(line: line, time: time, fontSize: 28)
+            let size = view.sizeThatFits(CGSize(width: 160, height: 1_000))
+            view.frame = CGRect(origin: .zero, size: size)
+            view.layoutIfNeeded()
+            view.layer.displayIfNeeded()
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return UIGraphicsImageRenderer(size: size, format: format).image { context in
+                view.layer.render(in: context.cgContext)
+            }
+        }
+        func pinkPixels(_ image: UIImage) throws -> Int {
+            let cgImage = try XCTUnwrap(image.cgImage)
+            let width = cgImage.width
+            let height = cgImage.height
+            var bytes = [UInt8](repeating: 0, count: width * height * 4)
+            let context = try XCTUnwrap(CGContext(data: &bytes, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return stride(from: 0, to: bytes.count, by: 4).filter { index in
+                let red = Int(bytes[index]), green = Int(bytes[index + 1]), blue = Int(bytes[index + 2])
+                return red > 40 && red > green * 2 && red > blue
+            }.count
+        }
+        let before = render(at: 0)
+        let partial = render(at: 1.5)
+        let firstWord = render(at: 2)
+        let wrapped = render(at: 8)
+        let paused = render(at: 8)
+        let complete = render(at: 10)
+        let backwards = render(at: 1.5)
+        XCTAssertGreaterThan(complete.size.height, 90, "Long mixed Unicode lyrics must wrap")
+        XCTAssertGreaterThan(try pinkPixels(partial), try pinkPixels(before))
+        XCTAssertGreaterThan(try pinkPixels(firstWord), try pinkPixels(partial))
+        XCTAssertGreaterThan(try pinkPixels(wrapped), try pinkPixels(firstWord))
+        XCTAssertGreaterThan(try pinkPixels(complete), try pinkPixels(wrapped))
+        XCTAssertEqual(wrapped.pngData(), paused.pngData(), "A paused clock must not advance the fill")
+        XCTAssertEqual(partial.pngData(), backwards.pngData(), "Seeking back must restore the same pixels")
+        for (name, image) in [("word-sweep-before", before), ("word-sweep-half-character", partial),
+                              ("word-sweep-wrapped", wrapped), ("word-sweep-complete", complete)] {
+            let attachment = XCTAttachment(image: image)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+    }
+
+    @MainActor
     func testRenderWordLyricsAndPlaybackControls() async throws {
         let url = try AudioTestFixtures.url()
         let playback = AudioPlaybackController()
         defer { playback.stop() }
-        let lyrics = try LRCParser.parse("[00:00.00]让音乐陪在身旁\n[00:00.60]每一句都属于自己\n[00:01.00]<00:01.00>跟<00:01.10>着<00:01.20>伴<00:01.30>奏<00:01.40>轻<00:01.50>轻<00:01.60>唱<00:01.90>\n[00:01.95]把今天唱成一首歌")
+        let lyrics = try LRCParser.parse("[00:00.00]让音乐陪在身旁\n[00:00.60]每一句都属于自己\n[00:01.00]跟[00:01.10]着[00:01.20]伴[00:01.30]奏[00:01.40]轻[00:01.50]轻[00:01.60]唱[00:01.90]\n[00:01.95]把今天唱成一首歌")
         let result = SeparationResult(sourceName: "示例歌曲.wav", vocalsURL: url, accompanimentURL: url, duration: 2)
         let root = ScrollView {
-            KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: SingingRecordingController(), startSinging: {}, togglePlayback: { _ in })
+            KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: SingingRecordingController(), startSinging: {}, togglePlayback: {})
                 .padding()
         }.preferredColorScheme(.dark)
         let host = UIHostingController(rootView: root)
@@ -31,6 +84,8 @@ final class KaraokeViewRenderingTests: XCTestCase {
         host.view.layoutIfNeeded()
         XCTAssertEqual(lyrics.activeLineIDs(at: playback.currentTime), [2])
         XCTAssertEqual(lyrics.lines[2].words.filter { $0.start <= playback.currentTime }.count, 4)
+        XCTAssertEqual(lyrics.lines[2].text, "跟着伴奏轻轻唱")
+        XCTAssertEqual(lyrics.lines[2].wordProgress(at: playback.currentTime)[3], 0.5, accuracy: 0.0001)
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
         }
@@ -50,8 +105,9 @@ final class KaraokeViewRenderingTests: XCTestCase {
         let result = SeparationResult(sourceName: "我的试唱.wav", vocalsURL: url, accompanimentURL: url, duration: 2)
         let lyrics = try LRCParser.parse("[00:00]跟着伴奏轻轻唱\n[00:00.30]每一句都属于自己\n[00:01]把今天唱成一首歌")
         await recording.start(result: result, lyrics: lyrics, playback: playback)
+        recording.setVocalsEnabled(true)
         let active = ScrollView {
-            KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording, startSinging: {}, togglePlayback: { _ in })
+            KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording, startSinging: {}, togglePlayback: {})
                 .padding()
         }.preferredColorScheme(.dark)
         try await attach(active, name: "Singing-recording-393x852")

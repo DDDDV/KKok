@@ -6,13 +6,14 @@ protocol KaraokeCapturing: AnyObject {
     var duration: TimeInterval { get }
     var level: Float { get }
     var onCompletion: ((Bool) -> Void)? { get set }
-    func start(accompanimentURL: URL, microphoneURL: URL) throws
+    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws
+    func setVocalsEnabled(_ enabled: Bool)
     func stop()
 }
 
 @MainActor
-final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate, AVAudioPlayerDelegate {
-    private var player: AVAudioPlayer?
+final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate {
+    private var player: SynchronizedStemPlayer?
     private var recorder: AVAudioRecorder?
     var onCompletion: ((Bool) -> Void)?
     var currentTime: TimeInterval { player?.currentTime ?? 0 }
@@ -23,16 +24,17 @@ final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate,
         return min(1, max(0, pow(10, decibels / 20)))
     }
 
-    func start(accompanimentURL: URL, microphoneURL: URL) throws {
+    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
         stop()
         do {
             let session = AVAudioSession.sharedInstance()
-            // No microphone monitoring: the user hears only the accompaniment.
+            // The optional original vocal is playback only; the recorder captures the microphone.
             // HFP supports Bluetooth microphones; wired headphones avoid its latency/quality limits.
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
             guard session.isInputAvailable else { throw SingingError.unavailable }
-            let nextPlayer = try AVAudioPlayer(contentsOf: accompanimentURL)
+            let nextPlayer = try SynchronizedStemPlayer(accompanimentURL: accompanimentURL, vocalsURL: vocalsURL)
+            nextPlayer.vocalsEnabled = vocalsEnabled
             let nextRecorder = try AVAudioRecorder(url: microphoneURL, settings: [
                 AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: session.sampleRate,
                 AVNumberOfChannelsKey: 1, AVLinearPCMBitDepthKey: 16,
@@ -40,11 +42,13 @@ final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate,
             ])
             player = nextPlayer
             recorder = nextRecorder
-            nextPlayer.delegate = self
+            nextPlayer.onError = { [weak self, weak nextPlayer] _ in
+                guard let self, let nextPlayer, self.player === nextPlayer else { return }
+                self.onCompletion?(false)
+            }
             nextRecorder.delegate = self
             nextRecorder.isMeteringEnabled = true
-            guard nextPlayer.duration.isFinite, nextPlayer.duration > 0,
-                  nextPlayer.prepareToPlay(), nextRecorder.prepareToRecord() else { throw SingingError.unavailable }
+            guard nextRecorder.prepareToRecord() else { throw SingingError.unavailable }
             // AVAudioRecorder and AVAudioPlayer share the audio device clock.
             // Schedule both before the common future start; never start them with sequential play()/record().
             let start = max(nextPlayer.deviceCurrentTime, nextRecorder.deviceCurrentTime) + 0.3
@@ -56,8 +60,12 @@ final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate,
         }
     }
 
+    func setVocalsEnabled(_ enabled: Bool) {
+        player?.vocalsEnabled = enabled
+    }
+
     func stop() {
-        player?.delegate = nil
+        player?.onError = nil
         recorder?.delegate = nil
         player?.stop()
         recorder?.stop()
@@ -80,10 +88,4 @@ final class KaraokeCapture: NSObject, KaraokeCapturing, AVAudioRecorderDelegate,
         }
     }
 
-    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        Task { @MainActor [weak self] in
-            guard let self, self.player === player else { return }
-            onCompletion?(false)
-        }
-    }
 }

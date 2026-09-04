@@ -299,7 +299,7 @@ struct ContentView: View {
                 playback: viewModel.playback,
                 recording: viewModel.recording,
                 startSinging: viewModel.startSinging,
-                togglePlayback: viewModel.togglePlayback
+                togglePlayback: viewModel.toggleKaraokePlayback
             )
             .disabled(viewModel.isImporting || viewModel.isProcessing)
 

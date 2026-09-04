@@ -31,6 +31,78 @@ final class TimedLyricsTests: XCTestCase {
         let lyrics = try LRCParser.parse("[00:01][00:11]<00:01>你<00:02>好<00:03>")
         XCTAssertEqual(lyrics.lines[1].words.map(\.start), [11, 12])
         XCTAssertEqual(lyrics.lines[1].end, 13)
+        XCTAssertEqual(lyrics.lines[1].words[0].end, 12)
+    }
+
+    func testSquareBracketWordTimingFromSuppliedLDDCSample() throws {
+        let lyrics = try LRCParser.parse("[tool:LDDC v0.9.2]\r\n[00:28.866]每[00:29.368]次[00:29.874]我[00:30.053]想[00:30.221]更[00:30.386]懂[00:30.680]你[00:31.004]")
+        let line = try XCTUnwrap(lyrics.lines.first)
+        XCTAssertTrue(lyrics.isWordTimed)
+        XCTAssertEqual(lyrics.lines.count, 1)
+        XCTAssertEqual(line.text, "每次我想更懂你")
+        XCTAssertEqual(line.words.map(\.text), ["每", "次", "我", "想", "更", "懂", "你"])
+        XCTAssertEqual(line.words.map(\.start), [28.866, 29.368, 29.874, 30.053, 30.221, 30.386, 30.680])
+        XCTAssertEqual(line.words.map(\.end), [29.368, 29.874, 30.053, 30.221, 30.386, 30.680, 31.004])
+        XCTAssertEqual(line.end, 31.004)
+        XCTAssertEqual(lyrics.activeLineIDs(at: 31.003), [0])
+        XCTAssertEqual(lyrics.activeLineIDs(at: 31.004), [])
+    }
+
+    func testAdjacentBodyMarkersPreserveRestInsteadOfStretchingWord() throws {
+        let lyrics = try LRCParser.parse("[00:52.526]爱[00:53.001]你[00:56.911][00:58.549]woo[01:00.269]")
+        let line = try XCTUnwrap(lyrics.lines.first)
+        XCTAssertEqual(line.text, "爱你woo")
+        XCTAssertEqual(line.words.count, 3)
+        XCTAssertEqual(line.words[1].end, 56.911)
+        XCTAssertEqual(line.words[2].start, 58.549)
+        XCTAssertEqual(line.wordProgress(at: 57), [1, 1, 0])
+        XCTAssertEqual(line.wordProgress(at: 59.409)[2], 0.5, accuracy: 0.0001)
+    }
+
+    func testSquareAndAngleWordTimingProduceEquivalentLinesAndHonorOffset() throws {
+        let square = try LRCParser.parse("[00:01]你[00:02]好[00:03]\n[offset:-500]")
+        let angle = try LRCParser.parse("[00:01]<00:01>你<00:02>好<00:03>\n[offset:-500]")
+        XCTAssertEqual(square, angle)
+        XCTAssertEqual(square.lines[0].words.map(\.start), [0.5, 1.5])
+        XCTAssertEqual(square.lines[0].words.map(\.end), [1.5, 2.5])
+        XCTAssertEqual(square.lines[0].end, 2.5)
+    }
+
+    func testMixedFormatsKeepRepeatedLineTagsAndLiteralAnnotations() throws {
+        let lyrics = try LRCParser.parse("[00:01][00:11]重复[合唱]\n[00:02]Hello [00:03]世界 👨‍👩‍👧‍👦[00:04]\n[00:05]<00:05>轻<00:06>唱<00:07>")
+        XCTAssertEqual(lyrics.lines.map(\.text), ["重复[合唱]", "Hello 世界 👨‍👩‍👧‍👦", "轻唱", "重复[合唱]"])
+        XCTAssertTrue(lyrics.lines[0].words.isEmpty)
+        XCTAssertTrue(lyrics.lines[3].words.isEmpty)
+        XCTAssertEqual(lyrics.lines[1].words.map(\.text), ["Hello ", "世界 👨‍👩‍👧‍👦"])
+    }
+
+    func testWordFillFollowsClockIncludingPauseBackwardSeekAndMissingEnd() throws {
+        let lyrics = try LRCParser.parse("[00:01]随[00:02]心[00:04]唱")
+        let line = lyrics.lines[0]
+        XCTAssertEqual(line.wordProgress(at: 0), [0, 0, 0])
+        XCTAssertEqual(line.wordProgress(at: 1), [0, 0, 0])
+        XCTAssertEqual(line.wordProgress(at: 1.5), [0.5, 0, 0])
+        XCTAssertEqual(line.wordProgress(at: 3), [1, 0.5, 0])
+        XCTAssertEqual(line.wordProgress(at: 4), [1, 1, 1])
+        XCTAssertEqual(line.wordProgress(at: 1.5), [0.5, 0, 0])
+        XCTAssertEqual(line.wordProgress(at: .nan), [0, 0, 0])
+        let instant = try LRCParser.parse("[00:01]同[00:01]时[00:02]").lines[0]
+        XCTAssertEqual(instant.wordProgress(at: 1), [1, 0])
+    }
+
+    func testMalformedSquareWordTimestampsAreRejected() {
+        for text in ["[00:01]字[00:60]错", "[00:01]字[00:00]错", "[00:01]字[00:02", "[00:01]字[00:02][00:01]错"] {
+            XCTAssertThrowsError(try LRCParser.parse(text), text)
+        }
+    }
+
+    func testSavedLyricsRemainCompatibleAndRetainWordEnds() throws {
+        let oldJSON = Data(#"{"lines":[{"id":0,"start":1,"text":"你好","words":[{"start":1,"text":"你"},{"start":2,"text":"好"}],"end":3}]}"#.utf8)
+        let old = try JSONDecoder().decode(TimedLyrics.self, from: oldJSON)
+        XCTAssertEqual(old.lines[0].wordProgress(at: 2.5), [1, 0.5])
+        let lyrics = try LRCParser.parse("[00:01]你[00:02][00:03]好[00:04]")
+        XCTAssertEqual(try JSONDecoder().decode(TimedLyrics.self, from: JSONEncoder().encode(lyrics)), lyrics)
+        XCTAssertEqual(lyrics.lines[0].wordProgress(at: 2.5), [1, 0])
     }
 
     func testBlankTimedLineClearsPreviousLyricAndFileOffsetIsHonored() throws {

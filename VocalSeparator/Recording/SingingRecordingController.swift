@@ -14,6 +14,7 @@ final class SingingRecordingController: ObservableObject {
     @Published private(set) var permissionDenied = false
     @Published private(set) var performances: [SingingPerformance] = []
     @Published private(set) var completedPerformance: SingingPerformance?
+    @Published private(set) var vocalsEnabled = false
 
     let store: PerformanceStore
     var isBusy: Bool { state != .idle }
@@ -113,7 +114,10 @@ final class SingingRecordingController: ObservableObject {
                 return
             }
             pending = draft
-            try capture.start(accompanimentURL: store.accompanimentURL(draft.id), microphoneURL: store.microphoneURL(draft.id))
+            try capture.start(
+                accompanimentURL: store.accompanimentURL(draft.id), vocalsURL: result.vocalsURL,
+                vocalsEnabled: vocalsEnabled, microphoneURL: store.microphoneURL(draft.id)
+            )
             state = .recording
             startID = nil
             duration = capture.duration
@@ -132,6 +136,12 @@ final class SingingRecordingController: ObservableObject {
             state = .idle
             errorText = error.localizedDescription
         }
+    }
+
+    func setVocalsEnabled(_ enabled: Bool) {
+        guard state == .idle || state == .recording else { return }
+        vocalsEnabled = enabled
+        if state == .recording { capture.setVocalsEnabled(enabled) }
     }
 
     func finish(notice: String? = nil) {

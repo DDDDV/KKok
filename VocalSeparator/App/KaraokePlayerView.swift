@@ -6,11 +6,9 @@ struct KaraokePlayerView: View {
     @ObservedObject var playback: AudioPlaybackController
     @ObservedObject var recording: SingingRecordingController
     let startSinging: () -> Void
-    let togglePlayback: (URL) -> Void
-    @State private var usesVocals = false
+    let togglePlayback: () -> Void
     @State private var selectionError: String?
 
-    private var selectedURL: URL { usesVocals ? result.vocalsURL : result.accompanimentURL }
     private var isRecording: Bool { recording.state == .recording }
     private var clockTime: TimeInterval { isRecording ? recording.currentTime : playback.currentTime }
     private var clockDuration: TimeInterval { isRecording ? recording.duration : playback.duration }
@@ -21,21 +19,25 @@ struct KaraokePlayerView: View {
                 .font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Picker("播放音轨", selection: $usesVocals) {
-                Text("伴奏 · 唱歌").tag(false)
-                Text("人声 · 跟唱").tag(true)
+            Toggle(isOn: Binding(
+                get: { recording.vocalsEnabled },
+                set: { enabled in
+                    recording.setVocalsEnabled(enabled)
+                    playback.setVocalsEnabled(enabled)
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("人声", systemImage: "person.wave.2.fill")
+                        .font(.headline)
+                    Text(recording.vocalsEnabled ? "原唱人声已开启，跟着一起唱" : "开启后听到原唱人声，伴奏继续播放")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
-            .pickerStyle(.segmented)
-            .disabled(recording.isBusy)
-            .onChange(of: usesVocals) { _, _ in
-                guard !recording.isBusy else { return }
-                let wasPlaying = playback.isPlaying
-                do {
-                    try playback.load(selectedURL, preservingTime: true)
-                    if wasPlaying { try playback.play() }
-                    selectionError = nil
-                } catch { selectionError = error.localizedDescription }
-            }
+            .tint(.pink)
+            .accessibilityIdentifier("karaoke.originalVocals")
+            .accessibilityLabel("原唱人声")
+            .accessibilityHint("演唱时可随时开关，伴奏继续播放")
+            .disabled(recording.isBusy && !isRecording)
 
             recordingControls
 
@@ -75,7 +77,7 @@ struct KaraokePlayerView: View {
                 } label: { Image(systemName: "gobackward.10").font(.title2) }
                 .accessibilityLabel("后退十秒")
 
-                Button { togglePlayback(selectedURL) } label: {
+                Button(action: togglePlayback) {
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                         .font(.title)
                         .frame(width: 64, height: 64)
@@ -104,13 +106,14 @@ struct KaraokePlayerView: View {
         }
         .padding(18)
         .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 20))
-        .onChange(of: recording.state) { _, state in
-            if state == .preparing { usesVocals = false }
-        }
         .task(id: result.accompanimentURL) {
-            usesVocals = false
             guard !recording.isBusy else { return }
-            do { try playback.load(result.accompanimentURL) }
+            recording.setVocalsEnabled(false)
+            do {
+                try playback.load(result.accompanimentURL, vocalsURL: result.vocalsURL)
+                playback.setVocalsEnabled(false)
+                selectionError = nil
+            }
             catch { selectionError = error.localizedDescription }
         }
     }

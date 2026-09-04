@@ -4,6 +4,13 @@ import CoreFoundation
 struct LyricWord: Codable, Equatable, Sendable {
     let start: TimeInterval
     let text: String
+    let end: TimeInterval?
+
+    init(start: TimeInterval, text: String, end: TimeInterval? = nil) {
+        self.start = start
+        self.text = text
+        self.end = end
+    }
 }
 
 struct LyricLine: Codable, Equatable, Identifiable, Sendable {
@@ -12,6 +19,17 @@ struct LyricLine: Codable, Equatable, Identifiable, Sendable {
     let text: String
     let words: [LyricWord]
     let end: TimeInterval?
+
+    /// Always derive the fill from the audio clock so pause and backward seek are exact.
+    /// A final word without an end marker is highlighted on onset, not given a made-up duration.
+    func wordProgress(at time: TimeInterval) -> [Double] {
+        words.enumerated().map { index, word in
+            guard time.isFinite, time >= word.start else { return 0 }
+            let finish = word.end ?? (index + 1 < words.count ? words[index + 1].start : end)
+            guard let finish, finish > word.start else { return 1 }
+            return min(1, max(0, (time - word.start) / (finish - word.start)))
+        }
+    }
 }
 
 struct TimedLyrics: Codable, Equatable, Sendable {
@@ -63,7 +81,7 @@ enum LyricsError: LocalizedError {
         case .tooLarge: return "歌词文件过大，请选择不超过 2 MB 的文本歌词。"
         case .tooComplex: return "歌词行数或逐字标记过多，请检查文件内容。"
         case .unreadable: return "无法读取歌词编码，请使用 UTF-8、UTF-16 或 GB18030 文本。"
-        case .noTimedLines: return "未找到有效时间戳。请导入 LRC 或带 <分:秒> 逐字时间戳的增强 LRC。"
+        case .noTimedLines: return "未找到有效时间戳。请导入 LRC，或带 [分:秒] / <分:秒> 逐字时间戳的歌词。"
         case .invalidLine(let number): return "歌词第 \(number) 行的时间戳无效或顺序错误，请检查文件。"
         }
     }
@@ -99,6 +117,7 @@ enum LyricsImportStore {
 }
 
 /// LRC: [mm:ss.xx]line; Enhanced LRC: [mm:ss.xx]<mm:ss.xx>word<mm:ss.xx>.
+/// Also accepts the supplied LDDC dialect: [mm:ss.xxx]word[mm:ss.xxx]word[mm:ss.xxx].
 /// Word timestamps are absolute. A trailing marker supplies an explicit line end.
 /// Other karaoke dialects must be added from real samples, never guessed.
 enum LRCParser {
@@ -144,7 +163,8 @@ enum LRCParser {
                 let shift = start - firstStart
                 parsed.append(LyricLine(
                     id: parsed.count, start: start, text: text,
-                    words: words.map { LyricWord(start: $0.start + shift, text: $0.text) },
+                    words: words.map { LyricWord(start: $0.start + shift, text: $0.text,
+                                                end: $0.end.map { $0 + shift }) },
                     end: end.map { $0 + shift }
                 ))
             }
@@ -155,7 +175,8 @@ enum LRCParser {
         // Embedded file offsets are part of the imported timing; there is no adjustment UI.
         var lines: [LyricLine] = []
         for line in parsed {
-            let words = line.words.map { LyricWord(start: $0.start + offset, text: $0.text) }
+            let words = line.words.map { LyricWord(start: $0.start + offset, text: $0.text,
+                                                  end: $0.end.map { $0 + offset }) }
             let end = line.end.map { $0 + offset }
             lines.append(LyricLine(id: line.id, start: line.start + offset,
                                   text: line.text, words: words, end: end))
@@ -170,26 +191,43 @@ enum LRCParser {
     private static func parseWords(
         _ source: String, lineStart: Double, number: Int
     ) throws -> (String, [LyricWord], Double?) {
-        guard source.contains("<") else { return (source, [], nil) }
+        // Leading adjacent [time][time] tags are still repeated ordinary LRC lines.
+        // Only markers interleaved with the lyric body select the square-bracket dialect.
+        let square = source.contains("[") && !source.contains("<")
+        let opening: Character = square ? "[" : "<"
+        let closing: Character = square ? "]" : ">"
+        func nextMarker(in text: Substring) -> String.Index? {
+            text.indices.first { index in
+                guard text[index] == opening else { return false }
+                let next = text.index(after: index)
+                return !square || (next < text.endIndex && text[next].isNumber)
+            }
+        }
+        guard let firstMarker = nextMarker(in: source[...]) else { return (source, [], nil) }
         var rest = source[...]
         var words: [LyricWord] = []
         var previous = lineStart
         var end: Double?
         // Untimed prefix is displayed at the line timestamp, without inventing word timing.
-        let prefix = String(rest.prefix { $0 != "<" })
-        rest = rest.dropFirst(prefix.count)
+        let prefix = String(rest[..<firstMarker])
+        rest = rest[firstMarker...]
         if !prefix.isEmpty { words.append(LyricWord(start: lineStart, text: prefix)) }
         while !rest.isEmpty {
-            guard rest.first == "<", let close = rest.firstIndex(of: ">"),
+            guard rest.first == opening, let close = rest.firstIndex(of: closing),
                   let start = timestamp(String(rest[rest.index(after: rest.startIndex)..<close])),
                   start >= previous else { throw LyricsError.invalidLine(number) }
             previous = start
+            // An empty interval between two markers is a rest. End the preceding
+            // word here instead of stretching its fill across that silence.
+            if let last = words.last, last.end == nil {
+                words[words.count - 1] = LyricWord(start: last.start, text: last.text, end: start)
+            }
             rest = rest[rest.index(after: close)...]
-            let text = String(rest.prefix { $0 != "<" })
-            rest = rest.dropFirst(text.count)
+            let next = nextMarker(in: rest) ?? rest.endIndex
+            let text = String(rest[..<next])
+            rest = rest[next...]
             if text.isEmpty {
-                guard rest.isEmpty else { throw LyricsError.invalidLine(number) }
-                end = start
+                if rest.isEmpty { end = start }
             } else {
                 words.append(LyricWord(start: start, text: text))
             }

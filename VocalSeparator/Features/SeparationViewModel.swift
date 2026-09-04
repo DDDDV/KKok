@@ -242,6 +242,15 @@ final class SeparationViewModel: ObservableObject {
         }
     }
 
+    func toggleKaraokePlayback() {
+        guard let result, !isImporting, !isProcessing, !recording.isBusy else { return }
+        do {
+            try playback.toggle(result.accompanimentURL, vocalsURL: result.vocalsURL, vocalsEnabled: recording.vocalsEnabled)
+        } catch {
+            present(error: error, title: "无法播放")
+        }
+    }
+
     func togglePlayback(_ url: URL) {
         guard !isImporting, !isProcessing, !recording.isBusy else { return }
         do {

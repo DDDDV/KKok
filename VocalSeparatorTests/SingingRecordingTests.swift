@@ -201,6 +201,116 @@ final class SingingRecordingTests: XCTestCase {
         }
     }
 
+    func testOriginalVocalSelectionSurvivesStartAndCanToggleWithoutRestartingCapture() async throws {
+        let store = store()
+        defer { try? FileManager.default.removeItem(at: store.root) }
+        let capture = FixtureCapture()
+        let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true })
+        let source = SeparationResult(
+            sourceName: "跟唱.wav", vocalsURL: try AudioTestFixtures.url("tone", "caf"),
+            accompanimentURL: try AudioTestFixtures.url(), duration: 2
+        )
+        XCTAssertFalse(controller.vocalsEnabled)
+        controller.setVocalsEnabled(true)
+        await controller.start(result: source, lyrics: nil, playback: AudioPlaybackController())
+        XCTAssertEqual(controller.state, .recording)
+        XCTAssertEqual(capture.vocalsURL, source.vocalsURL)
+        XCTAssertTrue(capture.vocalsEnabled)
+        let time = controller.currentTime
+        for enabled in [false, true, false, true] {
+            controller.setVocalsEnabled(enabled)
+            XCTAssertEqual(capture.vocalsEnabled, enabled)
+            XCTAssertEqual(controller.vocalsEnabled, enabled)
+            XCTAssertEqual(controller.state, .recording)
+            XCTAssertEqual(controller.currentTime, time)
+        }
+        XCTAssertEqual(capture.vocalChanges, [false, true, false, true])
+        XCTAssertEqual(capture.startCount, 1)
+        XCTAssertEqual(capture.stopCount, 0)
+        controller.finish()
+        try await awaitSaved(controller)
+        XCTAssertEqual(capture.stopCount, 1)
+        XCTAssertNotNil(controller.completedPerformance)
+    }
+
+    func testKaraokeActionsCarryOriginalVocalFromSeparationThroughPreviewAndRecording() async throws {
+        let store = store()
+        let capture = FixtureCapture()
+        let recording = SingingRecordingController(store: store, capture: capture, requestPermission: { true })
+        let model = SeparationViewModel(engine: StemSeparationEngine(makeRunner: { FixtureStemPredictor() }), recording: recording)
+        defer {
+            model.playback.stop()
+            try? FileManager.default.removeItem(at: store.root)
+            try? AudioImportStore.resetManagedStorage()
+        }
+        model.handleImport(.success(try AudioTestFixtures.url()))
+        for _ in 0..<200 {
+            if !model.isImporting { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        model.startSeparation()
+        for _ in 0..<200 {
+            if !model.isProcessing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let result = try XCTUnwrap(model.result)
+        recording.setVocalsEnabled(true)
+        model.toggleKaraokePlayback()
+        XCTAssertTrue(model.playback.isPlaying)
+        XCTAssertTrue(model.playback.vocalsEnabled)
+        XCTAssertEqual(model.playback.currentURL, result.accompanimentURL)
+        XCTAssertEqual(model.playback.currentVocalsURL, result.vocalsURL)
+        model.startSinging()
+        for _ in 0..<200 {
+            if recording.state == .recording { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(recording.state, .recording)
+        XCTAssertFalse(model.playback.isPlaying)
+        XCTAssertEqual(capture.vocalsURL, result.vocalsURL)
+        XCTAssertTrue(capture.vocalsEnabled)
+        model.toggleKaraokePlayback()
+        XCTAssertFalse(model.playback.isPlaying)
+        recording.finish()
+        try await awaitSaved(recording)
+        let saved = try XCTUnwrap(recording.completedPerformance)
+        try model.playback.toggle(store.mixURL(saved))
+        XCTAssertNil(model.playback.currentVocalsURL)
+        XCTAssertFalse(model.playback.vocalsEnabled)
+        model.playback.stop()
+        model.toggleKaraokePlayback()
+        XCTAssertTrue(model.playback.isPlaying)
+        XCTAssertTrue(model.playback.vocalsEnabled)
+        XCTAssertEqual(model.playback.currentVocalsURL, result.vocalsURL)
+    }
+
+    func testOriginalVocalIsExcludedFromSavedMixForBothInitialSelections() async throws {
+        let store = store()
+        defer { try? FileManager.default.removeItem(at: store.root) }
+        let vocals = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: vocals) }
+        try SingingFixtures.write(vocals, seconds: 2, channels: 2) { _, _ in 0.8 }
+        let source = SeparationResult(sourceName: "guide.wav", vocalsURL: vocals, accompanimentURL: try AudioTestFixtures.url(), duration: 2)
+        let controller = SingingRecordingController(store: store, capture: FixtureCapture(), requestPermission: { true })
+        var exports: [[[Float]]] = []
+        for enabled in [false, true] {
+            controller.setVocalsEnabled(enabled)
+            await controller.start(result: source, lyrics: nil, playback: AudioPlaybackController())
+            controller.setVocalsEnabled(!enabled)
+            controller.finish()
+            try await awaitSaved(controller)
+            let saved = try XCTUnwrap(controller.completedPerformance)
+            exports.append(try SingingFixtures.read(store.mixURL(saved)))
+            let expected = store.root.appendingPathComponent("expected.wav")
+            _ = try PerformanceMixer().mix(
+                microphoneURL: store.microphoneURL(saved.id), accompanimentURL: source.accompanimentURL, outputURL: expected
+            )
+            XCTAssertEqual(exports.last, try SingingFixtures.read(expected))
+            try FileManager.default.removeItem(at: expected)
+        }
+        XCTAssertEqual(exports[0], exports[1])
+    }
+
     func testFailedMixIsRecoverableAfterRelaunchAndRetry() async throws {
         let store = store()
         defer { try? FileManager.default.removeItem(at: store.root) }
@@ -294,10 +404,19 @@ final class FixtureCapture: KaraokeCapturing {
     var stopCount = 0
     var writesAudio = true
     var failsStart = false
-    func start(accompanimentURL: URL, microphoneURL: URL) throws {
+    var vocalsURL: URL?
+    var vocalsEnabled = false
+    var vocalChanges: [Bool] = []
+    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
         startCount += 1
         if failsStart { throw SingingError.unavailable }
+        self.vocalsURL = vocalsURL
+        self.vocalsEnabled = vocalsEnabled
         if writesAudio { try SingingFixtures.write(microphoneURL, seconds: 0.6) { _, frame in sin(Float(frame) * 0.03) * 0.2 } }
+    }
+    func setVocalsEnabled(_ enabled: Bool) {
+        vocalsEnabled = enabled
+        vocalChanges.append(enabled)
     }
     func stop() { stopCount += 1 }
 }

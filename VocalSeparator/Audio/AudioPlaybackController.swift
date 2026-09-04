@@ -3,15 +3,17 @@ import Combine
 import UIKit
 
 @MainActor
-final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDelegate {
+final class AudioPlaybackController: NSObject, ObservableObject {
     @Published private(set) var currentURL: URL?
+    @Published private(set) var currentVocalsURL: URL?
+    @Published private(set) var vocalsEnabled = false
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var errorText: String?
 
     var playingURL: URL? { isPlaying ? currentURL : nil }
-    private var player: AVAudioPlayer?
+    private var player: SynchronizedStemPlayer?
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
     private var resumeAfterScrubbing = false
@@ -43,25 +45,40 @@ final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDe
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
     }
 
-    func load(_ url: URL, preservingTime: Bool = false) throws {
-        guard currentURL != url || player == nil else { return }
-        let next = try AVAudioPlayer(contentsOf: url)
-        guard next.prepareToPlay(), next.duration.isFinite, next.duration > 0 else {
-            throw AudioPipelineError.emptyAudio
-        }
+    func load(_ url: URL, vocalsURL: URL? = nil, preservingTime: Bool = false) throws {
+        guard currentURL != url || currentVocalsURL != vocalsURL || player == nil else { return }
+        let next = try SynchronizedStemPlayer(accompanimentURL: url, vocalsURL: vocalsURL)
         let time = preservingTime ? currentTime : 0
         stop()
-        next.delegate = self
+        next.onCompletion = { [weak self, weak next] success in
+            guard let self, let next, self.player === next else { return }
+            self.isPlaying = false
+            self.currentTime = self.duration
+            self.releaseSession()
+            if !success { self.errorText = "音频播放未正常结束，请重试。" }
+        }
+        next.onError = { [weak self, weak next] error in
+            guard let self, let next, self.player === next else { return }
+            self.pause()
+            self.errorText = error?.localizedDescription ?? "音频解码失败。"
+        }
         player = next
         currentURL = url
+        currentVocalsURL = vocalsURL
         duration = next.duration
         seek(to: time)
     }
 
-    func toggle(_ url: URL) throws {
-        if currentURL == url, isPlaying { pause(); return }
-        try load(url, preservingTime: true)
+    func toggle(_ url: URL, vocalsURL: URL? = nil, vocalsEnabled: Bool = false) throws {
+        if currentURL == url, currentVocalsURL == vocalsURL, isPlaying { pause(); return }
+        try load(url, vocalsURL: vocalsURL, preservingTime: true)
+        setVocalsEnabled(vocalsEnabled)
         try play()
+    }
+
+    func setVocalsEnabled(_ enabled: Bool) {
+        vocalsEnabled = enabled && currentVocalsURL != nil
+        player?.vocalsEnabled = vocalsEnabled
     }
 
     func play() throws {
@@ -99,8 +116,14 @@ final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDe
     func seek(to time: TimeInterval) {
         guard time.isFinite, let player else { return }
         let target = min(max(time, 0), duration)
-        player.currentTime = target
+        let wasPlaying = isPlaying
+        if wasPlaying { player.pause() }
+        player.seek(to: target)
         currentTime = target
+        if wasPlaying, !player.play() {
+            pause()
+            errorText = "音频播放失败，请重试。"
+        }
     }
 
     func beginScrubbing() {
@@ -121,6 +144,8 @@ final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDe
         player?.stop()
         player = nil
         currentURL = nil
+        currentVocalsURL = nil
+        vocalsEnabled = false
         isPlaying = false
         currentTime = 0
         duration = 0
@@ -141,21 +166,4 @@ final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDe
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor [weak self] in
-            guard let self, self.player === player else { return }
-            isPlaying = false
-            currentTime = duration
-            releaseSession()
-            if !flag { errorText = "音频播放未正常结束，请重试。" }
-        }
-    }
-
-    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        Task { @MainActor [weak self] in
-            guard let self, self.player === player else { return }
-            pause()
-            errorText = error?.localizedDescription ?? "音频解码失败。"
-        }
-    }
 }
