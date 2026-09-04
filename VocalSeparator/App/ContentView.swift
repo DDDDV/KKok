@@ -8,8 +8,6 @@ struct ContentView: View {
     @State private var isShowingLegal = false
     @State private var isConfirmingTranscription = false
 
-    private let mp3Type = UTType(filenameExtension: "mp3") ?? .audio
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -60,8 +58,11 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .fileImporter(
             isPresented: $viewModel.isImporterPresented,
-            allowedContentTypes: [mp3Type],
-            onCompletion: viewModel.handleImport
+            // Some native audio and lyric extensions have no registered audio/text UTI.
+            // Validate the contents after selection so the picker never excludes them.
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true,
+            onCompletion: viewModel.handleFilesImport
         )
         .alert(item: $viewModel.alert) { alert in
             Alert(
@@ -115,9 +116,9 @@ struct ContentView: View {
             }
 
             VStack(spacing: 6) {
-                Text("人声分离与转写")
+                Text("随心唱")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                Text("在设备上拆分人声与伴奏，并将人声转为文本")
+                Text("导入你的歌，跟着伴奏和歌词唱")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.66))
             }
@@ -158,8 +159,9 @@ struct ContentView: View {
                         .foregroundStyle(.white.opacity(0.8))
                     Text("尚未选择音频")
                         .font(.headline)
-                    Text("原型当前接收单个 MP3 文件")
+                    Text("支持 MP3、AAC、M4A、ALAC、WAV、AIFF、CAF、FLAC 等系统可解码音频")
                         .font(.caption)
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(.white.opacity(0.55))
                 }
                 .frame(maxWidth: .infinity)
@@ -168,10 +170,11 @@ struct ContentView: View {
 
             HStack(spacing: 12) {
                 Button {
+                    viewModel.isSelectingLyrics = false
                     viewModel.isImporterPresented = true
                 } label: {
                     Label(
-                        viewModel.selectedAudio == nil ? "选择 MP3" : "重新选择",
+                        viewModel.selectedAudio == nil ? "导入歌曲与歌词" : "更换歌曲",
                         systemImage: "folder"
                     )
                     .frame(maxWidth: .infinity)
@@ -185,6 +188,34 @@ struct ContentView: View {
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
                 .disabled(!viewModel.canStart)
+            }
+
+            if viewModel.selectedAudio != nil {
+                HStack {
+                    Button {
+                        viewModel.isSelectingLyrics = true
+                        viewModel.isImporterPresented = true
+                    } label: {
+                        Label(viewModel.importedLyrics == nil ? "添加歌词" : "更换歌词", systemImage: "text.badge.plus")
+                    }
+                    Spacer()
+                    if viewModel.importedLyrics != nil {
+                        Button("移除", action: viewModel.removeLyrics)
+                    }
+                }
+                .font(.subheadline)
+                .disabled(viewModel.isImporting || viewModel.isProcessing)
+            }
+
+            if let lyrics = viewModel.importedLyrics {
+                Label("\(lyrics.displayName) · \(lyrics.lyrics.isWordTimed ? "逐字歌词" : "逐行歌词")", systemImage: "text.quote")
+                    .font(.caption)
+                    .foregroundStyle(.pink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("可同时选择歌曲和 LRC；歌词也可稍后添加。无需自动转写。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Text(viewModel.statusText)
@@ -237,25 +268,13 @@ struct ContentView: View {
                     .foregroundStyle(.white.opacity(0.55))
             }
 
-            StemResultCard(
-                title: "人声",
-                subtitle: "Vocals",
-                icon: "mic.fill",
-                colors: [.pink, .purple],
-                url: result.vocalsURL,
+            KaraokePlayerView(
+                result: result,
+                lyrics: viewModel.importedLyrics?.lyrics,
                 playback: viewModel.playback,
                 togglePlayback: viewModel.togglePlayback
             )
-
-            StemResultCard(
-                title: "伴奏",
-                subtitle: "Drums + Bass + Other",
-                icon: "music.quarternote.3",
-                colors: [.blue, .cyan],
-                url: result.accompanimentURL,
-                playback: viewModel.playback,
-                togglePlayback: viewModel.togglePlayback
-            )
+            .disabled(viewModel.isImporting || viewModel.isProcessing)
 
             TranscriptResultCard(
                 transcript: viewModel.transcript,
@@ -303,7 +322,7 @@ private struct TranscriptResultCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("人声文本", systemImage: "text.quote")
+                Label("可选：人声转写", systemImage: "text.quote")
                     .font(.headline)
                 Spacer()
                 if let languageName {
@@ -391,67 +410,6 @@ private struct TranscriptResultCard: View {
     }
 }
 
-private struct StemResultCard: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let colors: [Color]
-    let url: URL
-    @ObservedObject var playback: AudioPlaybackController
-    let togglePlayback: (URL) -> Void
-
-    private var isPlaying: Bool { playback.playingURL == url }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: colors,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 58, height: 58)
-                .overlay {
-                    Image(systemName: icon)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.white)
-                }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.headline)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.55))
-            }
-
-            Spacer()
-
-            Button {
-                togglePlayback(url)
-            } label: {
-                Image(systemName: isPlaying ? "stop.fill" : "play.fill")
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.10), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isPlaying ? "停止播放\(title)" : "播放\(title)")
-
-            ShareLink(item: url) {
-                Image(systemName: "square.and.arrow.up")
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.10), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("分享\(title)")
-        }
-        .padding(14)
-        .glassCard()
-    }
-}
-
 private struct LegalView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -461,7 +419,7 @@ private struct LegalView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("研究原型说明")
                         .font(.title2.bold())
-                    Text("本应用是本地技术验证原型。它使用 HTDemucs 将音频拆为 vocals、drums、bass、other，并将后三轨相加生成伴奏；随后使用 Argmax WhisperKit 在设备上将人声转为文本。")
+                    Text("本应用在设备上分离人声和伴奏，并配合用户导入的歌词唱歌。HTDemucs 将音频拆为 vocals、drums、bass、other，后三轨相加生成伴奏；人声转写由 Argmax WhisperKit 提供，需要用户自愿启用。")
 
                     Text("许可边界")
                         .font(.headline)

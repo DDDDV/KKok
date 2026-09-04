@@ -93,7 +93,7 @@ final class VocalTranscriptionTests: XCTestCase {
         XCTAssertFalse(viewModel.hasRequestedTranscription)
         let receivedURLs = await transcriber.receivedURLs
         XCTAssertEqual(receivedURLs, [])
-        XCTAssertEqual(viewModel.statusText, "分离完成；人声转写为可选功能")
+        XCTAssertEqual(viewModel.statusText, "伴奏已准备好，可以开始唱歌")
     }
 
     @MainActor
@@ -199,7 +199,7 @@ final class VocalTranscriptionTests: XCTestCase {
     private func makeTemporaryMP3() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).mp3")
-        try Data([0x49, 0x44, 0x33]).write(to: url)
+        try FileManager.default.copyItem(at: AudioTestFixtures.url("tone", "mp3"), to: url)
         return url
     }
 

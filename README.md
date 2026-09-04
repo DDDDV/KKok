@@ -1,15 +1,46 @@
-# 人声分离 iOS 原型
+# 随心唱 · iOS 本地卡拉 OK
 
-这是一个 iOS 17+ SwiftUI 原型：从“文件”选择单个 MP3，在设备上用
-HTDemucs Core ML 分离四个 stem，并可在用户明确启用后，用 Argmax WhisperKit
-将分离后的人声转为文本。应用可导出：
+基于现有人声分离原型的 iOS 17+ SwiftUI App。导入自己的歌曲，在设备上用
+HTDemucs Core ML 分离人声与伴奏，播放伴奏并按导入歌词的时间戳唱歌。
 
-- `*-vocals.wav`：人声（模型输出 0）
-- `*-accompaniment.wav`：伴奏（drums + bass + other）
+- 可一次选择一首歌曲和一份 `.lrc` / `.elrc` 歌词，也可选择歌曲后单独添加、替换或移除歌词。
+- 接收当前 iOS 上 Apple 原生框架可读取并解码的音频，不按扩展名拒绝文件。
+  包括 MP3、AAC、M4A（AAC 或 ALAC）、WAV、AIFF、CAF、FLAC 等；支持范围最终由
+  当前系统的实际解码能力决定。未知扩展名也可选择，损坏、加密或不支持的内容会报错。
+- 优先使用 `AVAudioFile`；其他系统可读取的容器使用 `AVAssetReader` 解码第一条音轨。
+  均转换为 44.1 kHz 双声道 PCM，再进入同一分离与播放流程。
+- 普通 LRC 自动滚动并高亮当前句，增强 LRC 按文件中 `<mm:ss.xx>` 的绝对时间戳
+  逐字/词高亮。暂停、续播、前后跳转和拖动进度均读取播放器的同一个时钟。
+- 伴奏为默认音轨，也可在相同进度切换到分离人声跟唱。自动转写始终是可选功能。
+- 第一版没有歌词时间偏移调节入口，不进行自动时间对齐。
 
-结果是 44.1 kHz、双声道、Float32 WAV，可在应用内试听或通过系统分享；
-识别文本可复制或通过系统分享。音频不会上传；导入副本与结果存放在本地
-Caches，并在下次启动时清理，请在当前会话中及时分享保存需要的结果。
+音频与歌词不上传。当前仍沿用原型的单首、会话内缓存：导入副本和分离结果在下次
+启动时清理，歌词保留在本次会话内，请及时使用“保存伴奏 / 保存人声”分享导出。
+结果为 44.1 kHz、双声道 Float32 WAV。没有新增录音、评分或歌曲库功能。
+
+## 歌词格式
+
+普通 LRC：支持分钟/秒（可选小数）、多时间标签、乱序行和同时间的原文/译文。
+带时间戳的空行用于结束上一句；没有结束标记时，高亮持续到下一句或歌曲结束。
+
+```text
+[ti:示例]
+[00:01.00]第一句
+[00:05.20][00:12.20]重复的副歌
+[00:08.00]
+```
+
+增强 LRC（当前采用的逐字格式）：
+
+```text
+[00:01.00]<00:01.00>随<00:01.50>心<00:02.00>唱<00:03.00>
+[00:05.00]<00:05.00>Hello <00:05.80>world<00:07.00>
+```
+
+尖括号时间是该字/词的起始时间，最后的空标签可以明确结束时间。不会把一个仅有
+词级时间戳的词伪造为有独立字时间戳。支持 UTF-8（含 BOM）、UTF-16 BOM、GB18030；
+最大 2 MiB，展开后最多 20,000 行、200,000 个字/词标记。文件内已有的 `[offset:毫秒]` 作为文件原始时间语义读取，没有手动调节。
+尚未收到用户的逐字歌词样例，KRC/QRC/TTML 等其他方言未声明支持，需按实际样例适配。
 
 多语言 Whisper 模型 `large-v3-v20240930_626MB` 不再进入 app bundle。分离完成后，
 用户可以不使用文字转写；只有用户在确认说明中选择“同意并继续”时，应用才会下载
@@ -72,7 +103,7 @@ VocalSeparator/Resources/Models/HTDemucs_CoreML_FP16.mlpackage
 
 ## 真实处理链路
 
-1. File Importer 返回 security-scoped URL；应用在授权期间复制 MP3 到沙盒。
+1. File Importer 返回 security-scoped URL；应用在授权期间复制歌曲并验证实际解码，歌词在授权期间读取和解析。
 2. `AVAudioConverter` 分批解码并重采样到 44.1 kHz、双声道、non-interleaved
    Float32 临时 CAF。
 3. 临时 CAF 按 441,000 帧（10 秒）分块；相邻块重叠 44,100 帧（1 秒）。
@@ -100,13 +131,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
   -scheme VocalSeparator \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -derivedDataPath /private/tmp/vocal-separator-derived \
-  test
+  -skip-testing:VocalSeparatorTests/RealPipelineIntegrationTests \
+  -skip-testing:VocalSeparatorTests/RealKaraokePipelineTests test
 ```
 
 如本机没有 `iPhone 17 Pro` Simulator，将名称换成 Xcode 已安装的任意 iOS 17+
 Simulator。
 
-测试覆盖分块边界、互补窗口、滚动 overlap-add、stem 映射、末块补零、
+测试还覆盖十种音频文件的真实导入/解码/分块/输出 WAV/播放链路（模拟器使用确定性预测器）、
+LRC 解析、逐字时间戳、暂停续播、拖动、音轨切换、导入失败原子性和歌词归属。
+`RealKaraokePipelineTests` 在真实 iPhone 上运行捆绑 HTDemucs 的十格式链路，
+不下载或启用转写模型。历史测试覆盖分块边界、互补窗口、滚动 overlap-add、stem 映射、末块补零、
 48 kHz 单声道到 44.1 kHz 双声道的实际 AVFoundation 转换，以及分离结果到
 人声转写入口的 URL 路由、用户未同意时不调用转写器、按需模型安装契约和文本整理。
 另有 opt-in 的
@@ -117,7 +152,7 @@ Documents 后，它会走与 app 相同的导入、HTDemucs 分离和 WhisperKit
 
 ## 已知边界
 
-- MVP 只接收 MP3，结果导出 WAV。
+- 音频解码取决于运行设备的原生解码器；不包含第三方 APE / Vorbis 等解码器。结果导出 WAV。
 - 处理需要将应用保持在前台。
 - 默认开发构建只带 Hugging Face 备用源；中国大陆正式发行前必须配置并实测自有大陆
   镜像，不能把“存在回退代码”当成网络可用性验收。

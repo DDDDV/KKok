@@ -1,9 +1,57 @@
 # 验证记录
 
+## 2026-09-04 · dev 卡拉 OK 首版
+
+实现范围：原生音频实际解码验证、AVAssetReader 容器回退、歌曲/歌词联合导入、
+普通 LRC 与增强 LRC、统一播放器时间源的暂停/继续/拖动、默认伴奏及同进度人声切换。
+没有增加手动歌词偏移调整；转写保留明确同意后才下载模型的边界。
+
+已执行验证（复测项与前面有重叠，不相加成独立用例数量）：
+
+- iPhone 17 Pro / iOS 26.5 Simulator：常规回归 **59/59 通过，0 失败，0 跳过**。
+  `/private/tmp/karaoke-dev-tests-3.xcresult`；真机集成类显式排除。
+- 目录拒绝、畸形时间戳和间奏滚动修正后的音频/歌词复测：**25/25 通过**。
+  `/private/tmp/karaoke-dev-final-guards.xcresult`。
+- 歌词解析最终复测（含重复标签展开上限与线性切片）：**9/9 通过**。
+  `/private/tmp/karaoke-dev-parser-verified.xcresult`。
+- 生产 `KaraokePlayerView` 界面渲染测试：**1/1 通过**。
+  `/private/tmp/karaoke-dev-render-final.xcresult`；已查看其 393×852 pt 截图，
+  逐字已唱/未唱颜色、音轨切换、进度条、播放按钮和导出入口正常显示。
+  初次独立 UIWindow 截图为空，改为连接 UIWindowScene 后重新渲染通过，未把空图作为视觉验收。
+- iPhone 16 Pro Max / **iOS 18.7.2**：`RealKaraokePipelineTests` **1/1 通过**，
+  在一个测试中循环完成 **10 种文件**的实际捆绑 HTDemucs 分离和 WAV 播放，
+  用例耗时 **46.223 秒**。`/private/tmp/karaoke-dev-device-tests.xcresult`。
+  真机测试没有使用预测器替身，没有启用 Whisper，也没有联网下载模型。
+
+音频矩阵：MP3、ADTS AAC、AAC/M4A、ALAC/M4A、WAV、AIFF、CAF、FLAC、
+带 PCM 音轨的 MOV、μ-law AU。测试资源是自行生成的 48 kHz 单声道、2 秒双频信号，
+可用 `Scripts/generate_audio_test_fixtures.py` 重建；未引入外部歌曲。
+模拟器矩阵使用真实导入、系统解码、生产分块/输出代码与 AVAudioPlayer，只有神经网络
+预测替换为确定性实现。真机矩阵使用真实模型，验证输出有限且保留非静音信号，
+两个输出均为 44.1 kHz 双声道 WAV；不将合成音频通过解读为人声分离听感验收。
+
+歌词覆盖：乱序/重复时间标签、同时间译文、UTF-8/UTF-16/GB18030、空行、
+逐字绝对时间与显式结束标记、文件内 offset 标签、Unicode 字符、前奏/间奏、
+向后拖动、暂停续播、换音轨、自然结束重播、歌词独立更换与失败原子性。
+`Samples/line.lrc` 和 `Samples/word.elrc` 提供可读示例。
+
+边界与待验收：
+
+- 尚未收到用户的实际逐字歌词样例。目前明确支持增强 LRC `<mm:ss.xx>`；
+  KRC、QRC、TTML 等格式未实现，也未宣称支持。
+- 已在模拟器查看首页和系统文件选择入口；歌词播放页采用生产视图渲染检查。
+  尚未完成真人在完整歌曲中的文件选择、演唱、听感、蓝牙输出延迟和中断恢复验收。
+- 最低部署版本保持 iOS 17；此次实际运行系统为 iOS 18.7.2 与 Simulator 26.5，
+  没有可用的 iOS 17 运行环境，不能将上述矩阵外推为所有系统/编码配置的穷尽证明。
+- 仍是单首会话缓存，重启会清理上次音频结果，歌词也需重新导入。
+- 使用本地 `dev` 分支，改动未暂存、未提交；模型权重与下载来源未修改。
+
+---
+
 验证日期：2026-09-01。环境：macOS 26.6.2 (arm64)、Xcode 26.6、iOS
 Simulator 26.5，以及 iPhone 16 Pro Max（iPhone17,2，iOS 18.7.2）。
 
-## 按需转写模型改造（当前结果）
+## 按需转写模型改造（2026-09-01 历史结果）
 
 - XcodeGen 2.45.4 重新生成工程成功；资源阶段只复制
   `MODEL_MANIFEST.json`，新模型管理器及其测试均已进入 Sources。

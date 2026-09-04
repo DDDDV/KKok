@@ -1,87 +1,161 @@
 import AVFoundation
 import Combine
-import Foundation
+import UIKit
 
+@MainActor
 final class AudioPlaybackController: NSObject, ObservableObject, AVAudioPlayerDelegate {
-    @Published private(set) var playingURL: URL?
+    @Published private(set) var currentURL: URL?
+    @Published private(set) var isPlaying = false
+    @Published private(set) var currentTime: TimeInterval = 0
+    @Published private(set) var duration: TimeInterval = 0
+    @Published private(set) var errorText: String?
 
+    var playingURL: URL? { isPlaying ? currentURL : nil }
     private var player: AVAudioPlayer?
-    private var interruptionObserver: NSObjectProtocol?
+    private var timer: Timer?
+    private var observers: [NSObjectProtocol] = []
+    private var resumeAfterScrubbing = false
 
     override init() {
         super.init()
-        interruptionObserver = NotificationCenter.default.addObserver(
+        observers.append(NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
+            object: AVAudioSession.sharedInstance(), queue: .main
         ) { [weak self] notification in
-            guard let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey]
-                    as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: typeValue) == .began else {
-                return
+            let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            if raw == AVAudioSession.InterruptionType.began.rawValue {
+                Task { @MainActor [weak self] in self?.pause() }
             }
-            self?.stop()
-        }
+        })
+        observers.append(NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(), queue: .main
+        ) { [weak self] notification in
+            let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            if raw == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue {
+                Task { @MainActor [weak self] in self?.pause() }
+            }
+        })
     }
 
     deinit {
-        if let interruptionObserver {
-            NotificationCenter.default.removeObserver(interruptionObserver)
+        timer?.invalidate()
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    func load(_ url: URL, preservingTime: Bool = false) throws {
+        guard currentURL != url || player == nil else { return }
+        let next = try AVAudioPlayer(contentsOf: url)
+        guard next.prepareToPlay(), next.duration.isFinite, next.duration > 0 else {
+            throw AudioPipelineError.emptyAudio
         }
+        let time = preservingTime ? currentTime : 0
+        stop()
+        next.delegate = self
+        player = next
+        currentURL = url
+        duration = next.duration
+        seek(to: time)
     }
 
     func toggle(_ url: URL) throws {
-        if playingURL == url, player?.isPlaying == true {
-            stop()
-            return
-        }
+        if currentURL == url, isPlaying { pause(); return }
+        try load(url, preservingTime: true)
+        try play()
+    }
 
-        if player != nil { stop() }
-
-        let nextPlayer = try AVAudioPlayer(contentsOf: url)
+    func play() throws {
+        guard let player, !isPlaying else { return }
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
-            nextPlayer.delegate = self
-            nextPlayer.prepareToPlay()
-            guard nextPlayer.play() else {
-                throw CocoaError(.fileReadUnknown)
+            if currentTime >= duration { seek(to: 0) }
+            guard player.play() else { throw CocoaError(.fileReadUnknown) }
+            isPlaying = true
+            errorText = nil
+            UIApplication.shared.isIdleTimerDisabled = true
+            timer?.invalidate()
+            let clock = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.refreshTime() }
             }
+            timer = clock
+            RunLoop.main.add(clock, forMode: .common)
         } catch {
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            pause()
+            errorText = error.localizedDescription
             throw error
         }
-        player = nextPlayer
-        playingURL = url
+    }
+
+    func pause() {
+        player?.pause()
+        refreshTime()
+        isPlaying = false
+        resumeAfterScrubbing = false
+        releaseSession()
+    }
+
+    func seek(to time: TimeInterval) {
+        guard time.isFinite, let player else { return }
+        let target = min(max(time, 0), duration)
+        player.currentTime = target
+        currentTime = target
+    }
+
+    func beginScrubbing() {
+        let wasPlaying = isPlaying
+        pause()
+        resumeAfterScrubbing = wasPlaying
+    }
+
+    func endScrubbing() {
+        let shouldResume = resumeAfterScrubbing
+        resumeAfterScrubbing = false
+        if shouldResume {
+            do { try play() } catch { errorText = error.localizedDescription }
+        }
     }
 
     func stop() {
         player?.stop()
         player = nil
-        playingURL = nil
-        try? AVAudioSession.sharedInstance().setActive(
-            false,
-            options: .notifyOthersOnDeactivation
-        )
+        currentURL = nil
+        isPlaying = false
+        currentTime = 0
+        duration = 0
+        resumeAfterScrubbing = false
+        errorText = nil
+        releaseSession()
     }
 
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        DispatchQueue.main.async { [weak self] in
-            guard self?.player === player else { return }
-            self?.player = nil
-            self?.playingURL = nil
-            try? AVAudioSession.sharedInstance().setActive(
-                false,
-                options: .notifyOthersOnDeactivation
-            )
+    private func refreshTime() {
+        guard let player else { return }
+        currentTime = min(max(player.currentTime, 0), duration)
+    }
+
+    private func releaseSession() {
+        timer?.invalidate()
+        timer = nil
+        UIApplication.shared.isIdleTimerDisabled = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor [weak self] in
+            guard let self, self.player === player else { return }
+            isPlaying = false
+            currentTime = duration
+            releaseSession()
+            if !flag { errorText = "音频播放未正常结束，请重试。" }
         }
     }
 
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        DispatchQueue.main.async { [weak self] in
-            guard self?.player === player else { return }
-            self?.stop()
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        Task { @MainActor [weak self] in
+            guard let self, self.player === player else { return }
+            pause()
+            errorText = error?.localizedDescription ?? "音频解码失败。"
         }
     }
 }

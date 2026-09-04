@@ -10,17 +10,6 @@ struct ImportedAudio: Equatable, Sendable {
     }
 }
 
-enum AudioImportError: LocalizedError {
-    case notMP3
-
-    var errorDescription: String? {
-        switch self {
-        case .notMP3:
-            return "请选择扩展名为 .mp3 的音频文件。"
-        }
-    }
-}
-
 enum AudioImportStore {
     static func resetManagedStorage() throws {
         let root = managedRootDirectory()
@@ -39,30 +28,36 @@ enum AudioImportStore {
     }
 
     static func persist(_ externalURL: URL) throws -> ImportedAudio {
-        guard externalURL.pathExtension.lowercased() == "mp3" else {
-            throw AudioImportError.notMP3
-        }
-
         let accessed = externalURL.startAccessingSecurityScopedResource()
         defer {
             if accessed { externalURL.stopAccessingSecurityScopedResource() }
+        }
+        guard try externalURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
+            throw AudioPipelineError.unsupportedFormat
         }
 
         let directory = try importsDirectory()
         let safeName = FileNameSanitizer.sanitize(
             externalURL.deletingPathExtension().lastPathComponent
         )
-        let destination = directory.appendingPathComponent(
-            "\(UUID().uuidString)-\(safeName).mp3"
-        )
-        try FileManager.default.copyItem(at: externalURL, to: destination)
-
-        let values = try destination.resourceValues(forKeys: [.fileSizeKey])
-        return ImportedAudio(
-            url: destination,
-            displayName: externalURL.lastPathComponent,
-            byteCount: Int64(values.fileSize ?? 0)
-        )
+        var destination = directory.appendingPathComponent("\(UUID().uuidString)-\(safeName)")
+        if !externalURL.pathExtension.isEmpty {
+            destination.appendPathExtension(externalURL.pathExtension)
+        }
+        do {
+            try FileManager.default.copyItem(at: externalURL, to: destination)
+            // Accept by actual system decoding capability, never by extension.
+            try NativeAudioDecoder.validate(destination)
+            let values = try destination.resourceValues(forKeys: [.fileSizeKey])
+            return ImportedAudio(
+                url: destination,
+                displayName: externalURL.lastPathComponent,
+                byteCount: Int64(values.fileSize ?? 0)
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
     }
 
     private static func importsDirectory() throws -> URL {

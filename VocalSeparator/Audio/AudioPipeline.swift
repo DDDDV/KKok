@@ -13,7 +13,7 @@ enum AudioPipelineError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat:
-            return "无法读取该音频格式。请选择有效的 MP3 文件。"
+            return "当前 iOS 无法解码此文件。请选择未加密、未损坏且系统支持的音频。"
         case .emptyAudio:
             return "所选音频没有可处理的内容。"
         case .converterUnavailable:
@@ -43,7 +43,21 @@ final class AudioInputPreparer {
     }
 
     func prepare(sourceURL: URL, destinationURL: URL) throws -> PreparedAudio {
-        try transcode(sourceURL: sourceURL, destinationURL: destinationURL)
+        // AVAssetReader covers native media containers which AVAudioFile cannot open.
+        let fallbackURL = destinationURL.deletingLastPathComponent()
+            .appendingPathComponent("decoded-\(UUID().uuidString).caf")
+        defer { try? FileManager.default.removeItem(at: fallbackURL) }
+        do {
+            if NativeAudioDecoder.canReadAudioFile(sourceURL) {
+                try transcode(sourceURL: sourceURL, destinationURL: destinationURL)
+            } else {
+                try NativeAudioDecoder.decodeAsset(sourceURL, to: fallbackURL)
+                try transcode(sourceURL: fallbackURL, destinationURL: destinationURL)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
 
         // The writer in transcode has left scope, so the CAF header is final.
         let verificationFile: AVAudioFile
@@ -82,7 +96,7 @@ final class AudioInputPreparer {
         if inputFormat.channelCount == 1 {
             converter.channelMap = [0, 0]
         } else if inputFormat.channelCount > 2 {
-            converter.channelMap = [0, 1]
+            converter.downmix = true
         }
 
         let outputFile: AVAudioFile

@@ -13,9 +13,11 @@ protocol StemSeparating: Sendable {
 
 actor StemSeparationEngine: StemSeparating {
     private let bundle: Bundle
+    private let makeRunner: (@Sendable () throws -> any StemPredicting)?
 
-    init(bundle: Bundle = .main) {
+    init(bundle: Bundle = .main, makeRunner: (@Sendable () throws -> any StemPredicting)? = nil) {
         self.bundle = bundle
+        self.makeRunner = makeRunner
     }
 
     func separate(
@@ -25,7 +27,7 @@ actor StemSeparationEngine: StemSeparating {
     ) async throws -> SeparationResult {
         try Task.checkCancellation()
         await progress(SeparationProgress(stage: .loadingModel, fraction: 0.02))
-        let runner = try HTDemucsModelRunner(bundle: bundle)
+        let runner = try makeRunner?() ?? HTDemucsModelRunner(bundle: bundle)
 
         let fileManager = FileManager.default
         try fileManager.createDirectory(

@@ -12,6 +12,8 @@ struct UserAlert: Identifiable {
 final class SeparationViewModel: ObservableObject {
     @Published var isImporterPresented = false
     @Published private(set) var selectedAudio: ImportedAudio?
+    @Published private(set) var importedLyrics: ImportedLyrics?
+    @Published var isSelectingLyrics = false
     @Published private(set) var result: SeparationResult?
     @Published private(set) var transcript: VocalTranscript?
     @Published private(set) var transcriptionErrorText: String?
@@ -21,7 +23,7 @@ final class SeparationViewModel: ObservableObject {
     @Published private(set) var isSeparating = false
     @Published private(set) var isTranscribing = false
     @Published private(set) var progress = 0.0
-    @Published private(set) var statusText = "选择一首 MP3 开始"
+    @Published private(set) var statusText = "导入歌曲，可同时选择对应歌词"
     @Published var alert: UserAlert?
 
     let playback = AudioPlaybackController()
@@ -63,36 +65,60 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func handleImport(_ importResult: Result<URL, Error>) {
+        handleFilesImport(importResult.map { [$0] })
+    }
+
+    func handleFilesImport(_ importResult: Result<[URL], Error>) {
+        guard !isImporting, !isProcessing else { return }
         switch importResult {
         case .failure(let error):
             if (error as NSError).code != NSUserCancelledError {
                 present(error: error, title: "无法选择文件")
             }
-        case .success(let externalURL):
+        case .success(let urls):
+            guard !urls.isEmpty else { return }
+            let lyricsOnly = isSelectingLyrics
+            let lyricURLs = lyricsOnly ? urls : urls.filter {
+                LyricsImportStore.supportedExtensions.contains($0.pathExtension.lowercased())
+            }
+            let audioURLs = lyricsOnly ? [] : urls.filter { !lyricURLs.contains($0) }
+            guard lyricURLs.count <= 1, audioURLs.count <= 1,
+                  (!audioURLs.isEmpty || (!lyricURLs.isEmpty && selectedAudio != nil)) else {
+                alert = UserAlert(title: "请选择一首歌曲", message: "一次可导入一首歌曲和一份对应歌词；也可选好歌曲后单独添加歌词。")
+                return
+            }
             isImporting = true
-            statusText = "正在复制所选文件…"
-            playback.stop()
+            statusText = "正在读取并验证所选文件…"
+            if audioURLs.isEmpty { playback.pause() } else { playback.stop() }
             let previousAudio = selectedAudio
             let previousResult = result
 
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let imported = try await Task.detached(priority: .userInitiated) {
-                        try AudioImportStore.persist(externalURL)
+                    // Validate the entire selection before replacing the current song.
+                    let (audio, lyrics) = try await Task.detached(priority: .userInitiated) {
+                        let lyrics = try lyricURLs.first.map { try LyricsImportStore.load($0) }
+                        let audio = try audioURLs.first.map { try AudioImportStore.persist($0) }
+                        return (audio, lyrics)
                     }.value
-                    if let previousAudio { try? AudioImportStore.remove(previousAudio) }
-                    if let previousResult { try? OutputStore.remove(previousResult) }
-                    selectedAudio = imported
-                    result = nil
-                    resetTranscription()
-                    statusText = "已选择，等待开始"
+                    if let audio {
+                        if let previousAudio { try? AudioImportStore.remove(previousAudio) }
+                        if let previousResult { try? OutputStore.remove(previousResult) }
+                        selectedAudio = audio
+                        result = nil
+                        importedLyrics = lyrics
+                        resetTranscription()
+                    } else {
+                        importedLyrics = lyrics
+                    }
+                    statusText = result == nil ? "已导入，点击开始分离" : "歌词已更新，可以开始唱歌"
                 } catch {
                     present(error: error, title: "导入失败")
                     if let selectedAudio {
                         statusText = "导入失败，仍可使用 \(selectedAudio.displayName)"
                     } else {
-                        statusText = "请选择有效的 MP3 文件"
+                        statusText = "请选择系统可解码的音频文件"
                     }
                 }
                 isImporting = false
@@ -101,7 +127,7 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func startSeparation() {
-        guard let selectedAudio, !isProcessing else { return }
+        guard let selectedAudio, canStart else { return }
         playback.stop()
         if let result { try? OutputStore.remove(result) }
         result = nil
@@ -122,7 +148,7 @@ final class SeparationViewModel: ObservableObject {
                 }
                 result = separationResult
                 progress = 1
-                statusText = "分离完成；人声转写为可选功能"
+                statusText = "伴奏已准备好，可以开始唱歌"
             } catch is CancellationError {
                 statusText = "已取消"
                 progress = 0
@@ -195,17 +221,24 @@ final class SeparationViewModel: ObservableObject {
     }
 
     func cancelForBackground() {
+        if !isProcessing { playback.pause() }
         guard isProcessing else { return }
         processingTask?.cancel()
         statusText = "应用已进入后台，正在停止并清理…"
     }
 
     func togglePlayback(_ url: URL) {
+        guard !isImporting, !isProcessing else { return }
         do {
             try playback.toggle(url)
         } catch {
             present(error: error, title: "无法播放")
         }
+    }
+
+    func removeLyrics() {
+        guard !isImporting, !isProcessing else { return }
+        importedLyrics = nil
     }
 
     private func apply(_ update: SeparationProgress) {

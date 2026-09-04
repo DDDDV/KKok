@@ -21,7 +21,11 @@ enum HTDemucsModelError: LocalizedError {
     }
 }
 
-final class HTDemucsModelRunner {
+protocol StemPredicting {
+    func predict(_ chunk: StereoPCMChunk) throws -> SeparatedStereoChunk
+}
+
+final class HTDemucsModelRunner: StemPredicting {
     private let model: MLModel
 
     convenience init(bundle: Bundle = .main) throws {
