@@ -13,19 +13,19 @@ enum AudioPipelineError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat:
-            return "当前 iOS 无法解码此文件。请选择未加密、未损坏且系统支持的音频。"
+            return String(localized: "This version of iOS cannot decode the file. Choose supported audio that is not encrypted or damaged.")
         case .emptyAudio:
-            return "所选音频没有可处理的内容。"
+            return String(localized: "The selected audio has no content to process.")
         case .converterUnavailable:
-            return "系统无法创建 44.1 kHz 双声道转换器。"
+            return String(localized: "The system could not create a 44.1 kHz stereo converter.")
         case .converterStalled:
-            return "音频转换没有继续产生数据。"
+            return String(localized: "Audio conversion stopped producing data.")
         case .shortRead(let expected, let actual):
-            return "临时音频读取不完整（期望 \(expected) 帧，实际 \(actual) 帧）。"
+            return String(localized: "The temporary audio read was incomplete (expected \(expected) frames, got \(actual)).")
         case .outputLengthMismatch(let expected, let actual):
-            return "导出音频时长错误（期望 \(expected) 帧，实际 \(actual) 帧）。"
+            return String(localized: "The exported audio has the wrong duration (expected \(expected) frames, got \(actual)).")
         case .operationFailed(let stage, let detail):
-            return "\(stage)失败：\(detail)"
+            return String(localized: "\(stage) failed: \(detail)")
         }
     }
 }
@@ -64,7 +64,7 @@ final class AudioInputPreparer {
         do {
             verificationFile = try AVAudioFile(forReading: destinationURL)
         } catch {
-            throw Self.context("验证临时音频", error)
+            throw Self.context(String(localized: "Verifying temporary audio"), error)
         }
         let totalFrames = Int(verificationFile.length)
         guard totalFrames > 0 else { throw AudioPipelineError.emptyAudio }
@@ -77,7 +77,7 @@ final class AudioInputPreparer {
         do {
             inputFile = try AVAudioFile(forReading: sourceURL)
         } catch {
-            throw Self.context("打开输入音频", error)
+            throw Self.context(String(localized: "Opening input audio"), error)
         }
         let inputFormat = inputFile.processingFormat
         guard inputFormat.channelCount > 0,
@@ -108,7 +108,7 @@ final class AudioInputPreparer {
                 interleaved: false
             )
         } catch {
-            throw Self.context("创建临时音频", error)
+            throw Self.context(String(localized: "Creating temporary audio"), error)
         }
         let state = InputState()
         var stalledIterations = 0
@@ -163,7 +163,7 @@ final class AudioInputPreparer {
                 } catch {
                     let nsError = error as NSError
                     state.readError = AudioPipelineError.operationFailed(
-                        stage: "读取输入音频",
+                        stage: String(localized: "Reading input audio"),
                         detail: "requested=\(capacity), position=\(inputFile.framePosition), "
                             + "length=\(inputFile.length), format=\(inputFormat), "
                             + "\(nsError.domain) \(nsError.code): \(nsError.localizedDescription)"
@@ -181,7 +181,7 @@ final class AudioInputPreparer {
                 do {
                     try outputFile.write(from: outputBuffer)
                 } catch {
-                    throw Self.context("写入临时音频", error)
+                    throw Self.context(String(localized: "Writing temporary audio"), error)
                 }
                 stalledIterations = 0
             } else if status != .endOfStream {

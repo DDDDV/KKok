@@ -149,14 +149,14 @@ enum SingingError: LocalizedError {
     case permissionDenied, unavailable, wirelessOutputUnavailable, tooShort, invalidSamples, invalidSettings, missingEditSources, staleEdit
     var errorDescription: String? {
         switch self {
-        case .permissionDenied: return "需要麦克风权限才能录制演唱，请在系统设置中允许访问麦克风。"
-        case .unavailable: return "无法启动麦克风或伴奏，请检查音频设备后重试。"
-        case .wirelessOutputUnavailable: return "无线耳机未能保持音乐播放连接。请重新选择耳机，或连接有线耳机后再开始。"
-        case .tooShort: return "录音太短，请至少演唱片刻后再结束。"
-        case .invalidSamples: return "录音中包含无法处理的音频数据。"
-        case .invalidSettings: return "人声音量需要在 0% 到 200% 之间。"
-        case .missingEditSources: return "这次演唱缺少原始人声或伴奏，无法再次调整。已有作品仍可回放和导出。"
-        case .staleEdit: return "这次演唱已发生变化，请重新打开后调整。"
+        case .permissionDenied: return String(localized: "Microphone access is required to record your singing. Allow microphone access in Settings.")
+        case .unavailable: return String(localized: "Unable to start the microphone or backing track. Check your audio device and try again.")
+        case .wirelessOutputUnavailable: return String(localized: "The wireless headphones could not maintain their playback connection. Select them again or connect wired headphones before starting.")
+        case .tooShort: return String(localized: "The recording is too short. Sing for a little longer before finishing.")
+        case .invalidSamples: return String(localized: "The recording contains audio data that cannot be processed.")
+        case .invalidSettings: return String(localized: "Vocal volume must be between 0% and 200%.")
+        case .missingEditSources: return String(localized: "The original vocals or backing track are missing, so this performance cannot be edited again. You can still play and export the saved version.")
+        case .staleEdit: return String(localized: "This performance has changed. Open it again to make adjustments.")
         }
     }
 }

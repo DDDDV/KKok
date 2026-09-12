@@ -67,6 +67,8 @@ struct TimedLyrics: Codable, Equatable, Sendable {
 struct ImportedLyrics: Codable, Equatable, Sendable {
     let displayName: String
     let lyrics: TimedLyrics
+
+    var localizedDisplayName: String { SavedMessageLocalization.text(displayName) }
 }
 
 enum LyricsError: LocalizedError {
@@ -78,11 +80,11 @@ enum LyricsError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .tooLarge: return "歌词文件过大，请选择不超过 2 MB 的文本歌词。"
-        case .tooComplex: return "歌词行数或逐字标记过多，请检查文件内容。"
-        case .unreadable: return "无法读取歌词编码，请使用 UTF-8、UTF-16 或 GB18030 文本。"
-        case .noTimedLines: return "未找到有效时间戳。请导入 LRC，或带 [分:秒] / <分:秒> 逐字时间戳的歌词。"
-        case .invalidLine(let number): return "歌词第 \(number) 行的时间戳无效或顺序错误，请检查文件。"
+        case .tooLarge: return String(localized: "The lyrics file is too large. Choose a text file no larger than 2 MB.")
+        case .tooComplex: return String(localized: "The lyrics contain too many lines or word timing markers. Please check the file.")
+        case .unreadable: return String(localized: "Unable to read the lyrics encoding. Use UTF-8, UTF-16, or GB18030 text.")
+        case .noTimedLines: return String(localized: "No valid timestamps found. Import LRC lyrics or word-synced lyrics with [min:sec] / <min:sec> timestamps.")
+        case .invalidLine(let number): return String(localized: "The timestamp on lyrics line \(number) is invalid or out of order. Please check the file.")
         }
     }
 }

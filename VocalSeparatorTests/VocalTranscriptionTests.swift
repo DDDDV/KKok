@@ -93,7 +93,7 @@ final class VocalTranscriptionTests: XCTestCase {
         XCTAssertFalse(viewModel.hasRequestedTranscription)
         let receivedURLs = await transcriber.receivedURLs
         XCTAssertEqual(receivedURLs, [])
-        XCTAssertEqual(viewModel.statusText, "伴奏已准备好，可以开始唱歌")
+        XCTAssertEqual(viewModel.statusText, String(localized: "Backing track ready. You can start singing."))
     }
 
     @MainActor
@@ -123,7 +123,7 @@ final class VocalTranscriptionTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: separationResult.vocalsURL.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: separationResult.accompanimentURL.path))
         XCTAssertNil(viewModel.transcript)
-        XCTAssertEqual(viewModel.alert?.title, "转写失败")
+        XCTAssertEqual(viewModel.alert?.title, String(localized: "Transcription Failed"))
         XCTAssertTrue(viewModel.canRetryTranscription)
     }
 
@@ -156,7 +156,7 @@ final class VocalTranscriptionTests: XCTestCase {
         XCTAssertNil(viewModel.transcript)
         XCTAssertNil(viewModel.transcriptionErrorText)
         XCTAssertNil(viewModel.alert)
-        XCTAssertEqual(viewModel.statusText, "分离完成，已取消转写")
+        XCTAssertEqual(viewModel.statusText, String(localized: "Separation complete. Transcription canceled."))
     }
 
     @MainActor
@@ -189,7 +189,7 @@ final class VocalTranscriptionTests: XCTestCase {
         XCTAssertEqual(viewModel.transcript, expected)
         XCTAssertNil(viewModel.transcriptionErrorText)
         XCTAssertNil(viewModel.alert)
-        XCTAssertEqual(viewModel.statusText, "分离与转写完成")
+        XCTAssertEqual(viewModel.statusText, String(localized: "Separation and transcription complete"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: separationResult.vocalsURL.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: separationResult.accompanimentURL.path))
         let receivedURLs = await transcriber.receivedURLs

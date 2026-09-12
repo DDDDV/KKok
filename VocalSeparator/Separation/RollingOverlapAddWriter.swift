@@ -9,11 +9,11 @@ enum OverlapAddError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidChunk:
-            return "分离结果块与时间轴不匹配。"
+            return String(localized: "The separated audio chunk does not match the timeline.")
         case .invalidFlushRange:
-            return "重叠拼接的写入区间无效。"
+            return String(localized: "The overlap-add write range is invalid.")
         case .zeroWeight:
-            return "重叠拼接遇到零权重采样。"
+            return String(localized: "Overlap-add encountered a sample with zero weight.")
         }
     }
 }

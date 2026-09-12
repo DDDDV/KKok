@@ -44,7 +44,7 @@ final class KaraokeCapture: KaraokeCapturing {
     }
     var level: Float { worker?.level ?? 0 }
     var captureFailure: String? {
-        worker?.failure ?? stoppedFailure ?? (engine != nil && engine?.isRunning == false ? "音频引擎已停止，已保留录下的部分。" : nil)
+        worker?.failure ?? stoppedFailure ?? (engine != nil && engine?.isRunning == false ? String(localized: "The audio engine stopped. The recorded portion has been kept.") : nil)
     }
     func drainPitchFrames() -> [PitchFrame] { worker?.drainPitchFrames() ?? [] }
     func setPitchAnalysisEnabled(_ enabled: Bool) {
@@ -95,7 +95,7 @@ final class KaraokeCapture: KaraokeCapturing {
             let route = SingingAudioRoute.current()
             try SingingAudioSessionPolicy.validateOutput(wasWireless: wasWireless, route: route)
             if pitchAnalysisEnabled, !route.usesHeadphones {
-                scoringUnavailableReason = "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。"
+                scoringUnavailableReason = String(localized: "This performance was not scored because audio played through the speaker. Sing again with headphones for pitch scoring.")
             }
             let id = UUID()
             generation = id
@@ -219,9 +219,9 @@ final class SingingCaptureWorker: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         guard accepting, errorText == nil, let start = origin else { return }
-        guard outstanding < 32 else { errorText = "录音处理未能跟上输入，已保留录下的部分。"; return }
+        guard outstanding < 32 else { errorText = String(localized: "Recording could not keep up with the input. The recorded portion has been kept."); return }
         guard let hostTime, let samples = buffer.floatChannelData?[0] else {
-            errorText = "无法读取麦克风时间戳，已停止录音。"
+            errorText = String(localized: "Unable to read microphone timestamps. Recording stopped.")
             return
         }
         outstanding += 1
@@ -231,7 +231,7 @@ final class SingingCaptureWorker: @unchecked Sendable {
         queue.async { [self] in
             defer { lock.withLock { outstanding -= 1 } }
             do { try consume(copy, at: position) }
-            catch { lock.withLock { errorText = "处理录音失败：\(error.localizedDescription)" } }
+            catch { lock.withLock { errorText = String(localized: "Recording processing failed: \(error.localizedDescription)") } }
         }
     }
 
@@ -273,7 +273,7 @@ final class SingingCaptureWorker: @unchecked Sendable {
             do {
                 let tail = try analyzer?.finish() ?? []
                 lock.withLock { pitchFrames += tail }
-            } catch { lock.withLock { errorText = "音高分析未完成，录音已保留。" } }
+            } catch { lock.withLock { errorText = String(localized: "Pitch analysis did not finish. Your recording has been kept.") } }
             file = nil
         }
     }

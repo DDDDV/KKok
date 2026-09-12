@@ -5,11 +5,11 @@ enum AudioExportError: LocalizedError {
     case unsupportedSource, invalidSamples, integerRange, encoder(Int32), verification
     var errorDescription: String? {
         switch self {
-        case .unsupportedSource: return "无法导出此音频，请确认文件存在且包含有效的单声道或双声道音频。"
-        case .invalidSamples: return "音频包含无效采样，无法可靠导出。"
-        case .integerRange: return "此音频的峰值超出 ALAC 整数音频范围。请使用 WAV 保留完整动态范围。"
-        case .encoder(let code): return "MP3 编码失败（\(code)），请重试或选择其他格式。"
-        case .verification: return "导出文件未通过完整性检查，请重试。"
+        case .unsupportedSource: return String(localized: "Unable to export this audio. Check that the file exists and contains valid mono or stereo audio.")
+        case .invalidSamples: return String(localized: "The audio contains invalid samples and cannot be exported reliably.")
+        case .integerRange: return String(localized: "The audio peaks exceed the ALAC integer range. Use WAV to preserve the full dynamic range.")
+        case .encoder(let code): return String(localized: "MP3 encoding failed (\(code)). Try again or choose another format.")
+        case .verification: return String(localized: "The exported file failed its integrity check. Please try again.")
         }
     }
 }

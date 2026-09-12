@@ -43,18 +43,22 @@ struct SingingAudioRoute: Equatable {
         }
     }
 
-    var outputName: String { outputs.map(\.name).joined(separator: "、") }
-    var inputName: String { inputs.map { $0.type == .builtInMic ? "手机麦克风" : $0.name }.joined(separator: "、") }
+    var outputName: String { ListFormatter.localizedString(byJoining: outputs.map(\.name)) }
+    var inputName: String {
+        ListFormatter.localizedString(byJoining: inputs.map {
+            $0.type == .builtInMic ? String(localized: "Phone microphone") : $0.name
+        })
+    }
     var symbol: String { usesHeadphones ? "headphones" : "speaker.wave.2" }
 
     func guidance(isRecording: Bool) -> String {
         if isWireless {
-            if !isRecording { return "无线耳机播放，使用手机或外接麦克风收音；使用手机时请靠近嘴边。" }
-            let microphone = inputName.isEmpty ? "当前麦克风" : inputName
-            let placement = inputs.contains { $0.type == .builtInMic } ? "请将手机靠近嘴边。" : ""
-            return "正在用\(microphone)收音；\(placement)无线耳机仍可能有同步偏差。"
+            if !isRecording { return String(localized: "Audio plays through wireless headphones while the phone or an external microphone records your voice. Keep the phone close to your mouth when using its microphone.") }
+            let microphone = inputName.isEmpty ? String(localized: "Current microphone") : inputName
+            let placement = inputs.contains { $0.type == .builtInMic } ? String(localized: "Keep the phone close to your mouth. ") : ""
+            return String(localized: "Recording with \(microphone). \(placement)Wireless headphones may still have a timing offset.")
         }
-        return usesHeadphones ? "耳机已连接，可以开始演唱。" : "佩戴耳机可减少伴奏串入录音。"
+        return usesHeadphones ? String(localized: "Headphones connected. You are ready to sing.") : String(localized: "Wear headphones to reduce backing track sound in your recording.")
     }
 
     func hasSameCaptureConfiguration(as other: Self) -> Bool {

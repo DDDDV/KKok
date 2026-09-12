@@ -18,14 +18,14 @@ struct PerformanceReviewView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    Label(editor.hasChanges ? "调整尚未保存" : editor.didSave ? "调整已保存" : "已保存到我的演唱",
+                    Label(editor.hasChanges ? String(localized: "Unsaved changes") : editor.didSave ? String(localized: "Changes saved") : String(localized: "Saved to My Recordings"),
                           systemImage: editor.hasChanges ? "slider.horizontal.3" : "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(StudioTheme.cream)
                     HStack(spacing: 16) {
                         RecordArtwork(title: editor.performance.title, size: 76, isPerformance: true)
                         VStack(alignment: .leading, spacing: 6) {
                             Text(editor.performance.title).font(.title3.bold())
-                            Text("我的演唱 · 已包含伴奏").font(.caption).foregroundStyle(.secondary)
+                            Text(String(localized: "My Recordings · Includes backing track")).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 0)
                     }
@@ -43,7 +43,7 @@ struct PerformanceReviewView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if editor.isBusy {
-                        ProgressView("正在保存调整…")
+                        ProgressView(String(localized: "Saving changes…"))
                             .frame(maxWidth: .infinity)
                     }
                     if let error = editor.errorText ?? playback.errorText {
@@ -51,7 +51,7 @@ struct PerformanceReviewView: View {
                     }
                     if editor.canEdit {
                         Button { Task { await editor.save() } } label: {
-                            Label("保存调整", systemImage: "checkmark.circle")
+                            Label(String(localized: "Save Changes"), systemImage: "checkmark.circle")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(PrimaryActionButtonStyle())
@@ -59,39 +59,39 @@ struct PerformanceReviewView: View {
                     }
                     Button {
                         exportRequest = AudioExportRequest(sourceURL: editor.savedURL,
-                                                           title: editor.performance.title + "-我的演唱")
+                                                           title: editor.performance.title + String(localized: "-My Recording"))
                     } label: {
-                        Label("导出已保存演唱（含伴奏）", systemImage: "square.and.arrow.up")
+                        Label(String(localized: "Export Saved Mix (with Backing Track)"), systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }.buttonStyle(SecondaryActionButtonStyle())
                         .disabled(editor.isBusy || editor.hasChanges)
                     if editor.hasChanges {
-                        Text("满意后点击“保存调整”，即可导出这次效果。")
+                        Text(String(localized: "Tap Save Changes when you are happy with the sound, then export the saved mix."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Button {
                         exportRequest = AudioExportRequest(sourceURL: editor.store.microphoneURL(editor.performance.id),
-                                                           title: editor.performance.title + "-原始录音")
+                                                           title: editor.performance.title + String(localized: "-Raw Recording"))
                     } label: {
-                        Label("仅导出原始录音", systemImage: "mic")
+                        Label(String(localized: "Export Raw Vocals Only"), systemImage: "mic")
                     }.font(.subheadline).disabled(editor.isBusy)
                     if let lyrics = editor.performance.lyrics {
-                        DisclosureGroup("查看同步歌词") {
+                        DisclosureGroup(String(localized: "View Synced Lyrics")) {
                             KaraokeLyricsView(lyrics: lyrics, currentTime: playback.currentTime, viewportHeight: 220)
                         }.font(.subheadline)
                     }
                     Text(editor.canEdit
-                         ? "在“我的演唱”中打开作品，可继续调整。原始录音始终保留。"
-                         : "演唱已保存在本机，可在“我的演唱”中回放或导出。")
+                         ? String(localized: "Open a performance in My Recordings to make further adjustments. Your raw recording is always kept.")
+                         : String(localized: "Your performance is saved on this device. Play or export it from My Recordings."))
                         .font(.caption).foregroundStyle(.secondary)
                 }.padding(24)
             }
             .background(StudioTheme.stage)
-            .navigationTitle("演唱回放与调整")
+            .navigationTitle(String(localized: "Listen and Edit Recording"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") {
+                    Button(String(localized: "Done")) {
                         if editor.hasChanges { confirmingExit = true } else { dismiss() }
                     }.disabled(editor.isBusy)
                 }
@@ -100,16 +100,16 @@ struct PerformanceReviewView: View {
         .preferredColorScheme(.dark)
         .sheet(item: $exportRequest) { AudioExportSheet(request: $0) }
         .interactiveDismissDisabled(editor.hasChanges || editor.isBusy)
-        .confirmationDialog("保存这次调整？", isPresented: $confirmingExit, titleVisibility: .visible) {
-            Button("保存并完成") {
+        .confirmationDialog(String(localized: "Save these changes?"), isPresented: $confirmingExit, titleVisibility: .visible) {
+            Button(String(localized: "Save and Close")) {
                 Task {
                     await editor.save()
                     if !editor.hasChanges { dismiss() }
                 }
             }
-            Button("放弃本次调整", role: .destructive) { dismiss() }
-            Button("继续调整", role: .cancel) {}
-        } message: { Text("放弃调整会保留上次保存的作品。") }
+            Button(String(localized: "Discard Changes"), role: .destructive) { dismiss() }
+            Button(String(localized: "Keep Editing"), role: .cancel) {}
+        } message: { Text(String(localized: "Discarding these changes will keep the last saved version.")) }
         .task { editor.load() }
         .onDisappear { editor.close() }
     }
@@ -122,14 +122,14 @@ struct PerformanceReviewView: View {
             }
             .tint(StudioTheme.cream)
             .disabled(editor.isBusy || playback.currentURL == nil)
-            .accessibilityLabel("演唱回放进度")
+            .accessibilityLabel(String(localized: "Recording Playback Progress"))
             HStack {
                 Text(Duration.seconds(playback.currentTime), format: .time(pattern: .minuteSecond))
                 Spacer()
                 Text(Duration.seconds(editor.performance.duration), format: .time(pattern: .minuteSecond))
             }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             Button { Task { await editor.audition() } } label: {
-                Label(playback.isPlaying ? "暂停试听" : "播放试听",
+                Label(playback.isPlaying ? String(localized: "Pause Preview") : String(localized: "Play Preview"),
                       systemImage: playback.isPlaying ? "pause.fill" : "play.fill")
                     .frame(maxWidth: .infinity)
             }.buttonStyle(SecondaryActionButtonStyle()).disabled(editor.isBusy)
@@ -139,15 +139,15 @@ struct PerformanceReviewView: View {
     private var adjustmentControls: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("我的人声音量", systemImage: "mic.fill").font(.subheadline.bold())
+                Label(String(localized: "My Vocal Volume"), systemImage: "mic.fill").font(.subheadline.bold())
                 Spacer()
                 Text("\(Int((editor.settings.vocalVolume * 100).rounded()))%")
                     .font(.subheadline.monospacedDigit()).foregroundStyle(StudioTheme.cream)
             }
             Slider(value: $editor.settings.vocalVolume, in: 0...2, step: 0.05)
-                .tint(StudioTheme.cream).accessibilityLabel("我的人声音量")
+                .tint(StudioTheme.cream).accessibilityLabel(String(localized: "My Vocal Volume"))
                 .accessibilityValue("\(Int((editor.settings.vocalVolume * 100).rounded()))%")
-            Text("人声音效").font(.subheadline.bold())
+            Text(String(localized: "Vocal Effects")).font(.subheadline.bold())
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(VocalEffect.allCases) { effect in
                     Button { editor.settings.effect = effect } label: {
@@ -163,10 +163,10 @@ struct PerformanceReviewView: View {
                 }
             }
             HStack {
-                Text("播放时调整即可实时听到变化，音效仅作用于你的人声。")
+                Text(String(localized: "Adjust during playback to hear changes immediately. Effects apply only to your vocals."))
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 4)
-                Button("恢复原声") { editor.settings = PerformanceMixSettings() }
+                Button(String(localized: "Reset to Natural")) { editor.settings = PerformanceMixSettings() }
                     .font(.caption).foregroundStyle(StudioTheme.cream)
             }
         }

@@ -87,7 +87,7 @@ struct StudioSearchField: View {
                 .accessibilityLabel(placeholder)
             if !text.isEmpty {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 32, height: 32) }
-                    .foregroundStyle(.secondary).accessibilityLabel("清除搜索")
+                    .foregroundStyle(.secondary).accessibilityLabel(String(localized: "Clear Search"))
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 8).frame(minHeight: 50)
@@ -174,7 +174,7 @@ struct StudioHeroCard<Action: View>: View {
             } else if compactLayout {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(title.replacingOccurrences(of: "\n", with: "")).font(.headline)
+                        Text(title.replacingOccurrences(of: "\n", with: " ")).font(.headline)
                         Text(subtitle).font(.caption).foregroundStyle(StudioTheme.cream)
                     }
                     .fixedSize(horizontal: false, vertical: true)

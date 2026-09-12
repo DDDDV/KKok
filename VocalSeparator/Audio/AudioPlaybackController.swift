@@ -81,12 +81,12 @@ final class AudioPlaybackController: NSObject, ObservableObject {
             self.isPlaying = false
             self.currentTime = self.duration
             self.releaseSession()
-            if !success { self.errorText = "音频播放未正常结束，请重试。" }
+            if !success { self.errorText = String(localized: "Audio playback did not finish normally. Please try again.") }
         }
         next.onError = { [weak self, weak next] error in
             guard let self, let next, self.player === next else { return }
             self.pause()
-            self.errorText = error?.localizedDescription ?? "音频解码失败。"
+            self.errorText = error?.localizedDescription ?? String(localized: "Audio decoding failed.")
         }
         player = next
         currentURL = url
@@ -149,7 +149,7 @@ final class AudioPlaybackController: NSObject, ObservableObject {
         currentTime = target
         if wasPlaying, !player.play() {
             pause()
-            errorText = "音频播放失败，请重试。"
+            errorText = String(localized: "Audio playback failed. Please try again.")
         }
     }
 

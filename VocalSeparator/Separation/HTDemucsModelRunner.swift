@@ -10,13 +10,13 @@ enum HTDemucsModelError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelNotFound:
-            return "未找到 HTDemucs Core ML 模型。请先运行 Scripts/bootstrap.sh。"
+            return String(localized: "The HTDemucs Core ML model was not found. Run Scripts/bootstrap.sh first.")
         case .invalidInputDescription:
-            return "模型的 audio 输入与预期的 (1, 2, 441000) Float32 不一致。"
+            return String(localized: "The model's audio input does not match the expected (1, 2, 441000) Float32 format.")
         case .invalidOutputDescription:
-            return "模型的 sources 输出与预期的 (1, 4, 2, 441000) Float16/Float32 不一致。"
+            return String(localized: "The model's sources output does not match the expected (1, 4, 2, 441000) Float16/Float32 format.")
         case .unexpectedArray(let detail):
-            return "模型张量格式不受支持：\(detail)"
+            return String(localized: "Unsupported model tensor format: \(detail)")
         }
     }
 }
@@ -52,7 +52,7 @@ final class HTDemucsModelRunner: StemPredicting {
     func predict(_ chunk: StereoPCMChunk) throws -> SeparatedStereoChunk {
         guard chunk.left.count == HTDemucsContract.segmentFrames,
               chunk.right.count == HTDemucsContract.segmentFrames else {
-            throw HTDemucsModelError.unexpectedArray("输入块长度错误")
+            throw HTDemucsModelError.unexpectedArray(String(localized: "Incorrect input chunk length"))
         }
 
         let input = try MLMultiArray(
@@ -115,7 +115,7 @@ enum TensorIO {
         guard input.dataType == .float32,
               input.shape.map(\.intValue) == [1, 2, left.count],
               right.count == left.count else {
-            throw HTDemucsModelError.unexpectedArray("audio 输入不是 Float32 [1,2,N]")
+            throw HTDemucsModelError.unexpectedArray(String(localized: "The audio input is not Float32 [1,2,N]"))
         }
 
         let strides = input.strides.map(\.intValue)
@@ -136,7 +136,7 @@ enum TensorIO {
         guard sources.shape.map(\.intValue) == [1, 4, 2, frameCount],
               sources.dataType == .float16 || sources.dataType == .float32 else {
             throw HTDemucsModelError.unexpectedArray(
-                "sources 输出不是 Float16/Float32 [1,4,2,N]"
+                String(localized: "The sources output is not Float16/Float32 [1,4,2,N]")
             )
         }
 

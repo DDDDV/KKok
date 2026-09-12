@@ -17,10 +17,10 @@ enum VocalEffect: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .natural: return "原声"
-        case .bathroom: return "浴室"
-        case .hallway: return "楼道"
-        case .concertHall: return "音乐厅"
+        case .natural: return String(localized: "Natural")
+        case .bathroom: return String(localized: "Bathroom")
+        case .hallway: return String(localized: "Hallway")
+        case .concertHall: return String(localized: "Concert Hall")
         }
     }
     var symbol: String {

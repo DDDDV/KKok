@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>随心唱</string>
+	<string>Sing Freely</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -19,7 +19,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>用于录制你跟随伴奏演唱的声音，以便在本机回放并导出演唱。</string>
+	<string>Record your voice as you sing along, then play back and export your performance on this device.</string>
 	<key>NSAccentColorName</key>
 	<string>AccentColor</string>
 	<key>TranscriptionModelMirrorBaseURLs</key>

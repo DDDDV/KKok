@@ -43,7 +43,7 @@ enum SeparationPlanningError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration:
-            return "音频分块参数无效。"
+            return String(localized: "Invalid audio chunk settings.")
         }
     }
 }

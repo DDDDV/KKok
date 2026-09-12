@@ -64,7 +64,7 @@ final class RealPipelineIntegrationTests: XCTestCase {
         XCTAssertEqual(result, separatedResult)
         let transcript = try XCTUnwrap(viewModel.transcript)
         XCTAssertFalse(transcript.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        XCTAssertEqual(viewModel.statusText, "分离与转写完成")
+        XCTAssertEqual(viewModel.statusText, String(localized: "Separation and transcription complete"))
 
         let calls = await transcriber.calls
         XCTAssertEqual(calls.count, 1)

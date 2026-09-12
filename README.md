@@ -266,6 +266,25 @@ Documents 后，它会走与 app 相同的导入、HTDemucs 分离和 WhisperKit
 并输出可复核的哈希与审计 JSON。完整模型链路请在真实 iPhone 上运行。
 实际执行记录与未覆盖边界见 [`VALIDATION.md`](VALIDATION.md)。
 
+## 界面语言
+
+英语是默认开发语言和不支持语言的回退语言，简体中文随系统或 iOS 的单 App 语言设置启用。
+英文应用名为 **Sing Freely**，中文应用名保留为 **随心唱**。界面、错误、无障碍提示、
+导出名称和麦克风权限说明统一由 `Localizable.xcstrings` / `InfoPlist.xcstrings` 管理。
+用户导入的歌曲名称、歌词和转写内容保留原文。
+
+新增文案使用英语 `String(localized:)`，同时补全两个字符串目录中的简体中文翻译。
+修改语言配置后从 `project.yml` 运行 `xcodegen generate`。资源检查命令：
+
+```sh
+python3 Scripts/validate-localizations.py
+# 构建后增加 --stringsdata-directory <app target 的 Objects-normal/arm64 路径>
+# 可对照 Swift 编译器的提取结果检查遗漏的文案。
+```
+
+`LocalizationTests` 验证真实 bundle 的语言、权限文案、格式参数和旧数据提示；
+测试时分别指定 `-testLanguage en -testRegion US` 和 `-testLanguage zh-Hans -testRegion CN`。
+
 ## 已知边界
 
 - 音频解码取决于运行设备的原生解码器；不包含第三方 APE / Vorbis 等解码器。结果导出 WAV。

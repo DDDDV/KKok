@@ -57,7 +57,7 @@ final class SongMetadataTests: XCTestCase {
         let audio = try AudioImportStore.persist(url, root: store.root)
         let song = try store.applying(metadata, to: LibrarySong(audio: audio, lyrics: nil))
         XCTAssertNil(song.lyrics, "Plain text must not be converted to invented karaoke timing")
-        XCTAssertEqual(song.lyricsStatusText, "有内嵌歌词 · 无可用时间轴")
+        XCTAssertEqual(song.lyricsStatusText, String(localized: "Embedded lyrics available · No usable timing"))
     }
 
     func testM4AUsesSystemArtworkAndLyricsMetadata() async throws {

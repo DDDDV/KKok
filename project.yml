@@ -1,6 +1,7 @@
 name: VocalSeparatorPrototype
 
 options:
+  developmentLanguage: en
   bundleIdPrefix: com.example
   deploymentTarget:
     iOS: "17.0"
@@ -11,6 +12,7 @@ settings:
     SWIFT_VERSION: "5.0"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     TARGETED_DEVICE_FAMILY: "1"
+    SWIFT_EMIT_LOC_STRINGS: YES
 
 packages:
   ArgmaxOSS:

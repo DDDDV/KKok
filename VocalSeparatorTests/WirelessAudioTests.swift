@@ -38,13 +38,14 @@ final class WirelessAudioTests: XCTestCase {
 
     func testRouteMessagesDescribeActualInputAndDoNotClaimHeadphonesOnSpeaker() {
         XCTAssertEqual(Self.wirelessRoute.outputName, "AirPods Pro")
-        XCTAssertTrue(Self.wirelessRoute.guidance(isRecording: true).contains("手机麦克风"))
+        XCTAssertTrue(Self.wirelessRoute.guidance(isRecording: true).contains(String(localized: "Phone microphone")))
         let external = SingingAudioRoute(inputs: [.init(id: "usb", name: "USB 话筒", type: .usbAudio)],
                                         outputs: Self.wirelessRoute.outputs)
         XCTAssertTrue(external.guidance(isRecording: true).contains("USB 话筒"))
         XCTAssertFalse(Self.speakerRoute.usesHeadphones)
         XCTAssertFalse(SingingAudioRoute(inputs: [], outputs: []).usesHeadphones)
-        XCTAssertFalse(Self.speakerRoute.guidance(isRecording: false).contains("已连接"))
+        XCTAssertEqual(Self.speakerRoute.guidance(isRecording: false),
+                       String(localized: "Wear headphones to reduce backing track sound in your recording."))
     }
 
     func testCaptureConfigurationTracksDeviceProfileClockAndLatencyNotNames() {

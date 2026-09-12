@@ -14,9 +14,9 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("启用音准评分", isOn: $scoringEnabled)
+                    Toggle(String(localized: "Enable Pitch Scoring"), isOn: $scoringEnabled)
                         .accessibilityIdentifier("settings.pitchScoringEnabled")
-                    Picker("评分模式", selection: Binding(
+                    Picker(String(localized: "Scoring Mode"), selection: Binding(
                         get: { scoringMode }, set: { storedScoringMode = $0.rawValue }
                     )) {
                         ForEach(PitchScoringMode.allCases) { mode in Text(mode.title).tag(mode) }
@@ -26,11 +26,11 @@ struct SettingsView: View {
                     if scoringEnabled {
                         Text(scoringMode.detail).font(.subheadline).foregroundStyle(.secondary)
                     }
-                } header: { Text("演唱评分") } footer: {
-                    Text("设置从下一次演唱生效。关闭后隐藏音准轨道，演唱不再生成分数。已有作品的分数和评分模式会保留。")
+                } header: { Text(String(localized: "Performance Scoring")) } footer: {
+                    Text(String(localized: "Changes apply to your next performance. Turning scoring off hides the pitch track and stops new scores from being generated. Existing scores and scoring modes are kept."))
                 }
                 Section {
-                    Picker("导出格式", selection: Binding(
+                    Picker(String(localized: "Export Format"), selection: Binding(
                         get: { selectedFormat }, set: { storedFormat = $0.rawValue }
                     )) {
                         ForEach(AudioExportFormat.allCases) { format in Text(format.title).tag(format) }
@@ -38,16 +38,16 @@ struct SettingsView: View {
                     .pickerStyle(.navigationLink)
                     .accessibilityIdentifier("settings.exportFormat")
                     Text(selectedFormat.detail).font(.subheadline).foregroundStyle(.secondary)
-                } header: { Text("音频导出") } footer: {
-                    Text("应用于伴奏、人声、演唱和原始录音。导出时才转换格式，本机保存的原始音频和演唱调整不受影响。")
+                } header: { Text(String(localized: "Audio Export")) } footer: {
+                    Text(String(localized: "Applies to backing tracks, vocals, performances, and raw recordings. Audio is converted only when exported. Your local originals and saved adjustments stay the same."))
                 }
-                Section("关于") {
-                    Button("关于与许可") { showingAbout = true }
-                    NavigationLink("MP3 编码与开源许可") { LAMELicenseView() }
+                Section(String(localized: "About")) {
+                    Button(String(localized: "About and Licenses")) { showingAbout = true }
+                    NavigationLink(String(localized: "MP3 Encoding and Open Source License")) { LAMELicenseView() }
                 }
             }
-            .navigationTitle("设置")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+            .navigationTitle(String(localized: "Settings"))
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(String(localized: "Done")) { dismiss() } } }
             .sheet(isPresented: $showingAbout) { LegalView() }
         }
         .tint(StudioTheme.accent)
@@ -59,22 +59,22 @@ struct LAMELicenseView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("LAME 4.0").font(.title2.bold())
-                Text("本应用使用独立的 LAME 动态库编码 MP3，并按 GNU LGPL 2.1 分发该库。版权属于 LAME 原作者，完整声明见下方源码包。")
-                Link("LAME 项目网站", destination: URL(string: "https://lame.sourceforge.io/")!)
+                Text(String(localized: "This app encodes MP3 using a separate LAME dynamic library distributed under GNU LGPL 2.1. Copyright belongs to the original LAME authors. Full notices are included in the source package below."))
+                Link(String(localized: "LAME Website"), destination: URL(string: "https://lame.sourceforge.io/")!)
                 if let source = Bundle.main.url(forResource: "LAME-4.0-source", withExtension: "zip") {
-                    ShareLink(item: source) { Label("导出完整源码与构建说明", systemImage: "square.and.arrow.up") }
+                    ShareLink(item: source) { Label(String(localized: "Export Full Source and Build Instructions"), systemImage: "square.and.arrow.up") }
                 }
-                Text("你可以依许可修改、替换 LAME，并为调试这些修改进行必要的逆向工程。本应用的其他使用条款不限制这些权利。源码包包含重建动态库和替换方法。")
+                Text(String(localized: "You may modify and replace LAME under its license and perform reverse engineering needed to debug those changes. The app's other terms do not restrict these rights. The source package includes instructions for rebuilding and replacing the dynamic library."))
                 Text(licenseText).font(.caption.monospaced()).textSelection(.enabled)
             }.padding(20)
         }
-        .navigationTitle("开源许可").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(String(localized: "Open Source License")).navigationBarTitleDisplayMode(.inline)
     }
 
     private var licenseText: String {
         guard let url = Bundle.main.url(forResource: "LAME-LGPL-2.1", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8) else {
-            return "许可证暂时无法读取，请在 LAME 项目网站查看 GNU LGPL。"
+            return String(localized: "The license could not be loaded. Please read the GNU LGPL on the LAME website.")
         }
         return text
     }

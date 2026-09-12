@@ -40,18 +40,18 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             libraryPage(.songs)
-                .tabItem { Label("歌曲库", systemImage: "square.stack.fill") }.tag(LibraryTab.songs)
+                .tabItem { Label(String(localized: "Songs"), systemImage: "square.stack.fill") }.tag(LibraryTab.songs)
             libraryPage(.accompaniments)
-                .tabItem { Label("伴奏库", systemImage: "waveform") }.tag(LibraryTab.accompaniments)
+                .tabItem { Label(String(localized: "Backing Tracks"), systemImage: "waveform") }.tag(LibraryTab.accompaniments)
             libraryPage(.performances)
-                .tabItem { Label("我的演唱", systemImage: "mic.fill") }.tag(LibraryTab.performances)
+                .tabItem { Label(String(localized: "My Recordings"), systemImage: "mic.fill") }.tag(LibraryTab.performances)
         }
         .tint(StudioTheme.accent)
         .preferredColorScheme(.light)
         .fileImporter(isPresented: $viewModel.isImporterPresented, allowedContentTypes: [.item],
                       allowsMultipleSelection: true, onCompletion: viewModel.handleFilesImport)
         .alert(item: Binding(get: { isShowingSong ? nil : viewModel.alert }, set: { viewModel.alert = $0 })) { alert in
-            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("好")))
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(String(localized: "OK"))))
         }
         .sheet(isPresented: $isShowingSettings) { SettingsView() }
         .sheet(item: $exportRequest) { AudioExportSheet(request: $0) }
@@ -79,42 +79,42 @@ struct ContentView: View {
             PerformanceReviewView(performance: performance, store: viewModel.recording.store,
                                   playback: viewModel.playback, onSave: viewModel.recording.didSaveAdjustments)
         }
-        .alert(renamingPerformance == nil ? "重命名歌曲" : "重命名演唱", isPresented: Binding(
+        .alert(renamingPerformance == nil ? String(localized: "Rename Song") : String(localized: "Rename Recording"), isPresented: Binding(
             get: { renamingSong != nil || renamingPerformance != nil },
             set: { if !$0 { renamingSong = nil; renamingPerformance = nil } }
         )) {
-            TextField("名称", text: $editedTitle)
-            Button("保存") {
+            TextField(String(localized: "Name"), text: $editedTitle)
+            Button(String(localized: "Save")) {
                 if let song = renamingSong { viewModel.renameSong(song, title: editedTitle) }
                 if let performance = renamingPerformance { viewModel.recording.rename(performance, title: editedTitle) }
                 renamingSong = nil
                 renamingPerformance = nil
             }
             .disabled(editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("取消", role: .cancel) { renamingSong = nil; renamingPerformance = nil }
+            Button(String(localized: "Cancel"), role: .cancel) { renamingSong = nil; renamingPerformance = nil }
         }
-        .confirmationDialog(deletesSeparationOnly ? "删除分离结果？" : "删除这首歌曲？", isPresented: Binding(
+        .confirmationDialog(deletesSeparationOnly ? String(localized: "Delete separated tracks?") : String(localized: "Delete this song?"), isPresented: Binding(
             get: { deletingSong != nil }, set: { if !$0 { deletingSong = nil } }
         ), titleVisibility: .visible) {
-            Button(deletesSeparationOnly ? "删除伴奏与人声" : "删除歌曲与分离结果", role: .destructive) {
+            Button(deletesSeparationOnly ? String(localized: "Delete Backing Track and Vocals") : String(localized: "Delete Song and Separated Tracks"), role: .destructive) {
                 if let song = deletingSong { viewModel.deleteSong(song, separationOnly: deletesSeparationOnly) }
                 deletingSong = nil
             }
         } message: {
-            Text(deletesSeparationOnly ? "保留导入的原曲和已保存的演唱，可重新分离。" : "将删除本机原曲、对应歌词和分离结果。已保存的演唱不受影响。")
+            Text(deletesSeparationOnly ? String(localized: "The imported original and saved recordings will be kept. You can separate the song again.") : String(localized: "This will delete the local original, its lyrics, and separated tracks. Saved recordings will be kept."))
         }
-        .confirmationDialog("删除这次演唱？", isPresented: Binding(
+        .confirmationDialog(String(localized: "Delete this recording?"), isPresented: Binding(
             get: { deletingPerformance != nil }, set: { if !$0 { deletingPerformance = nil } }
         ), titleVisibility: .visible) {
-            Button("删除演唱", role: .destructive) {
+            Button(String(localized: "Delete Recording"), role: .destructive) {
                 if let performance = deletingPerformance {
                     viewModel.recording.delete(performance, playback: viewModel.playback)
                 }
                 deletingPerformance = nil
             }
-        } message: { Text("将删除这次演唱及其原始录音，歌曲和伴奏仍保留。") }
-        .confirmationDialog("丢弃未保存的录音？", isPresented: $isDiscardingRecording, titleVisibility: .visible) {
-            Button("丢弃录音", role: .destructive) { viewModel.recording.discardPending() }
+        } message: { Text(String(localized: "This will delete this performance and its raw recording. The song and backing track will be kept.")) }
+        .confirmationDialog(String(localized: "Discard the unsaved recording?"), isPresented: $isDiscardingRecording, titleVisibility: .visible) {
+            Button(String(localized: "Discard Recording"), role: .destructive) { viewModel.recording.discardPending() }
         }
         .onChange(of: viewModel.recording.completedPerformance) { _, performance in
             if performance != nil { selectedTab = .performances }
@@ -150,7 +150,7 @@ struct ContentView: View {
                 if viewModel.isProcessing || viewModel.isImporting { processingDock }
                 if viewModel.recording.state == .needsRecovery && tab != .performances {
                     Button { selectedTab = .performances } label: {
-                        Label("有一段演唱等待保存 · 前往处理", systemImage: "arrow.clockwise.circle")
+                        Label(String(localized: "A recording is waiting to be saved · Review"), systemImage: "arrow.clockwise.circle")
                             .font(.subheadline).frame(maxWidth: .infinity).padding(16)
                             .background(.regularMaterial)
                     }
@@ -162,9 +162,9 @@ struct ContentView: View {
     private func pageHeader(_ tab: LibraryTab) -> some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 8) {
-                Label("随心唱 · 从心开唱", systemImage: "heart.fill")
+                Label(String(localized: "Sing Freely · Sing from the heart"), systemImage: "heart.fill")
                     .font(.caption.weight(.semibold)).foregroundStyle(StudioTheme.accent)
-                Text(tab == .songs ? "歌曲库" : tab == .accompaniments ? "伴奏库" : "我的演唱")
+                Text(tab == .songs ? String(localized: "Songs") : tab == .accompaniments ? String(localized: "Backing Tracks") : String(localized: "My Recordings"))
                     .font(.largeTitle.bold()).tracking(-1)
                     .accessibilityAddTraits(.isHeader)
             }
@@ -174,84 +174,84 @@ struct ContentView: View {
                     .frame(width: 44, height: 44).background(.white.opacity(0.9), in: Circle())
                     .overlay { Circle().stroke(StudioTheme.border.opacity(0.5), lineWidth: 1) }
             }
-            .accessibilityLabel("设置").accessibilityIdentifier("library.settings")
+            .accessibilityLabel(String(localized: "Settings")).accessibilityIdentifier("library.settings")
         }
     }
 
     private var songsContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioHeroCard(eyebrow: "你的私人歌单", title: "喜欢的歌，\n随心唱。",
-                           subtitle: "\(viewModel.songs.count) 首歌曲 · \(viewModel.separatedSongs.count) 首伴奏已就绪") {
+            StudioHeroCard(eyebrow: String(localized: "YOUR PERSONAL PLAYLIST"), title: String(localized: "Songs you love.\nSing them freely."),
+                           subtitle: String(localized: "Songs: \(viewModel.songs.count) · Backing tracks ready: \(viewModel.separatedSongs.count)")) {
                 Button(action: importSongs) {
-                    Label(viewModel.isImporting ? "正在导入…" : "导入歌曲", systemImage: "plus")
+                    Label(viewModel.isImporting ? String(localized: "Importing…") : String(localized: "Import Songs"), systemImage: "plus")
                 }
                 .buttonStyle(StudioHeroButtonStyle())
                 .disabled(!viewModel.canManageLibrary).accessibilityIdentifier("library.import")
             }
-            StudioSearchField(text: $songSearch, placeholder: "搜索你的歌曲")
+            StudioSearchField(text: $songSearch, placeholder: String(localized: "Search your songs"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    filterPill("全部", symbol: "music.note.list", selected: !onlyUnseparated && !favoriteSongsOnly) {
+                    filterPill(String(localized: "All"), symbol: "music.note.list", selected: !onlyUnseparated && !favoriteSongsOnly) {
                         onlyUnseparated = false; favoriteSongsOnly = false
                     }
-                    filterPill("收藏", symbol: "heart", selected: favoriteSongsOnly) { favoriteSongsOnly.toggle() }
+                    filterPill(String(localized: "Favorites"), symbol: "heart", selected: favoriteSongsOnly) { favoriteSongsOnly.toggle() }
                         .accessibilityIdentifier("library.songs.favorites")
-                    filterPill("待分离", symbol: "waveform.path", selected: onlyUnseparated) { onlyUnseparated.toggle() }
+                    filterPill(String(localized: "Not Separated"), symbol: "waveform.path", selected: onlyUnseparated) { onlyUnseparated.toggle() }
                 }
             }
-            browserToolbar("我的歌曲", count: filteredSongs.count, sort: $songSort, identifier: "songs")
+            browserToolbar(String(localized: "My Songs"), count: filteredSongs.count, sort: $songSort, identifier: "songs")
             if !viewModel.isLibraryAvailable {
-                StudioEmptyState(symbol: "externaldrive.badge.exclamationmark", title: "歌曲库暂时无法打开",
-                                 message: "文件仍保存在本机，请重启应用后重试。")
+                StudioEmptyState(symbol: "externaldrive.badge.exclamationmark", title: String(localized: "The song library is unavailable"),
+                                 message: String(localized: "Your files are still on this device. Restart the app and try again."))
             } else if viewModel.songs.isEmpty {
-                StudioEmptyState(symbol: "music.note.list", title: "让第一首歌住进来",
-                                 message: "从“文件”一次导入多首音频，\n也可以为单首歌曲同时添加 LRC 歌词。")
+                StudioEmptyState(symbol: "music.note.list", title: String(localized: "Make room for your first song"),
+                                 message: String(localized: "Import multiple audio files from Files,\nor add a song together with its LRC lyrics."))
             } else if filteredSongs.isEmpty {
-                StudioEmptyState(symbol: favoriteSongsOnly ? "heart" : "magnifyingglass", title: "这里还没有歌曲",
-                                 message: "点歌曲旁的爱心即可收藏，或试试其他筛选条件。",
-                                 actionTitle: "显示全部歌曲", action: {
+                StudioEmptyState(symbol: favoriteSongsOnly ? "heart" : "magnifyingglass", title: String(localized: "No songs here yet"),
+                                 message: String(localized: "Tap the heart next to a song to add it to Favorites, or try other filters."),
+                                 actionTitle: String(localized: "Show All Songs"), action: {
                     songSearch = ""; favoriteSongsOnly = false; onlyUnseparated = false
                 })
             } else {
                 LazyVStack(spacing: 10) { ForEach(filteredSongs) { song in songRow(song, separated: false) } }
             }
-            Label("歌曲与作品保存在本机", systemImage: "internaldrive")
+            Label(String(localized: "Songs and recordings stay on this device"), systemImage: "internaldrive")
                 .font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 4)
         }
     }
 
     private var accompanimentsContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioHeroCard(eyebrow: "把舞台留给你", title: "下一首，\n你来唱。",
-                           subtitle: "\(viewModel.separatedSongs.count) 首伴奏 · \(viewModel.separatedSongs.filter { $0.lyrics != nil }.count) 首同步歌词就绪") {
+            StudioHeroCard(eyebrow: String(localized: "THE STAGE IS YOURS"), title: String(localized: "Your song.\nYour turn."),
+                           subtitle: String(localized: "Backing tracks: \(viewModel.separatedSongs.count) · Synced lyrics ready: \(viewModel.separatedSongs.filter { $0.lyrics != nil }.count)")) {
                 Button {
                     if viewModel.selectRandomAccompaniment(from: filteredAccompaniments) { isShowingStage = true }
-                } label: { Label("随机开唱", systemImage: "shuffle") }
+                } label: { Label(String(localized: "Surprise Me"), systemImage: "shuffle") }
                     .buttonStyle(StudioHeroButtonStyle())
                     .disabled(!viewModel.canManageLibrary || filteredAccompaniments.isEmpty)
-                    .accessibilityHint("从当前筛选的伴奏中选择一首，进入演唱页面")
+                    .accessibilityHint(String(localized: "Choose a random backing track from the current results and open the singing screen"))
                     .accessibilityIdentifier("library.randomSing")
             }
-            StudioSearchField(text: $accompanimentSearch, placeholder: "搜索已分离的歌曲")
+            StudioSearchField(text: $accompanimentSearch, placeholder: String(localized: "Search separated songs"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    filterPill("全部", symbol: "waveform", selected: !favoriteAccompanimentsOnly && !lyricsReadyOnly) {
+                    filterPill(String(localized: "All"), symbol: "waveform", selected: !favoriteAccompanimentsOnly && !lyricsReadyOnly) {
                         favoriteAccompanimentsOnly = false; lyricsReadyOnly = false
                     }
-                    filterPill("收藏", symbol: "heart", selected: favoriteAccompanimentsOnly) { favoriteAccompanimentsOnly.toggle() }
-                    filterPill("歌词就绪", symbol: "text.quote", selected: lyricsReadyOnly) { lyricsReadyOnly.toggle() }
+                    filterPill(String(localized: "Favorites"), symbol: "heart", selected: favoriteAccompanimentsOnly) { favoriteAccompanimentsOnly.toggle() }
+                    filterPill(String(localized: "Lyrics Ready"), symbol: "text.quote", selected: lyricsReadyOnly) { lyricsReadyOnly.toggle() }
                         .accessibilityIdentifier("library.lyricsReady")
                 }
             }
-            browserToolbar("准备开唱", count: filteredAccompaniments.count, sort: $accompanimentSort, identifier: "accompaniments")
+            browserToolbar(String(localized: "Ready to Sing"), count: filteredAccompaniments.count, sort: $accompanimentSort, identifier: "accompaniments")
             if viewModel.separatedSongs.isEmpty {
-                StudioEmptyState(symbol: "waveform.path", title: "你的专属伴奏，从这里开始",
-                                 message: "在歌曲库分离人声与伴奏，\n完成后就能在这里进入演唱。",
-                                 actionTitle: "去歌曲库", action: { selectedTab = .songs })
+                StudioEmptyState(symbol: "waveform.path", title: String(localized: "Your backing tracks start here"),
+                                 message: String(localized: "Separate vocals and backing tracks in Songs.\nWhen ready, come here to sing."),
+                                 actionTitle: String(localized: "Go to Songs"), action: { selectedTab = .songs })
             } else if filteredAccompaniments.isEmpty {
-                StudioEmptyState(symbol: "magnifyingglass", title: "没有符合条件的伴奏",
-                                 message: "试试其他关键词，或清除收藏与歌词筛选。",
-                                 actionTitle: "显示全部伴奏", action: {
+                StudioEmptyState(symbol: "magnifyingglass", title: String(localized: "No matching backing tracks"),
+                                 message: String(localized: "Try other keywords, or clear the Favorites and lyrics filters."),
+                                 actionTitle: String(localized: "Show All Backing Tracks"), action: {
                     accompanimentSearch = ""; favoriteAccompanimentsOnly = false; lyricsReadyOnly = false
                 })
             } else {
@@ -262,14 +262,14 @@ struct ContentView: View {
 
     private var performancesContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioHeroCard(eyebrow: "每一次开口，都值得留下", title: "让歌声，\n成为作品。",
-                           subtitle: "\(viewModel.recording.performances.count) 个作品 · 累计 \(StudioTheme.duration(viewModel.recording.performances.reduce(0) { $0 + $1.duration }))") {
-                Button { selectedTab = .accompaniments } label: { Label("录一首新歌", systemImage: "mic.badge.plus") }
+            StudioHeroCard(eyebrow: String(localized: "EVERY VOICE IS WORTH KEEPING"), title: String(localized: "Your voice.\nYour creation."),
+                           subtitle: String(localized: "Recordings: \(viewModel.recording.performances.count) · Total time: \(StudioTheme.duration(viewModel.recording.performances.reduce(0) { $0 + $1.duration }))")) {
+                Button { selectedTab = .accompaniments } label: { Label(String(localized: "Record a Song"), systemImage: "mic.badge.plus") }
                     .buttonStyle(StudioHeroButtonStyle())
             }
             if viewModel.recording.state == .needsRecovery { recoveryCard }
             if viewModel.recording.state == .mixing {
-                ProgressView("正在保存演唱…").frame(maxWidth: .infinity).padding(20).studioCard()
+                ProgressView(String(localized: "Saving recording…")).frame(maxWidth: .infinity).padding(20).studioCard()
             }
             if let notice = viewModel.recording.notice {
                 Label(notice, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
@@ -277,14 +277,14 @@ struct ContentView: View {
             if let error = viewModel.recording.errorText {
                 Text(error).font(.caption).foregroundStyle(StudioTheme.accent)
             }
-            StudioSearchField(text: $performanceSearch, placeholder: "搜索我的演唱")
-            browserToolbar("我的作品", count: filteredPerformances.count, sort: $performanceSort, identifier: "performances")
+            StudioSearchField(text: $performanceSearch, placeholder: String(localized: "Search my recordings"))
+            browserToolbar(String(localized: "My Performances"), count: filteredPerformances.count, sort: $performanceSort, identifier: "performances")
             if viewModel.recording.performances.isEmpty {
-                StudioEmptyState(symbol: "mic.badge.plus", title: "留下你的第一段歌声",
-                                 message: "选一首伴奏，进入沉浸式演唱。\n录制完成后，作品会自动保存在这里。")
+                StudioEmptyState(symbol: "mic.badge.plus", title: String(localized: "Capture your first performance"),
+                                 message: String(localized: "Choose a backing track and start singing.\nYour performance will be saved here automatically."))
             } else if filteredPerformances.isEmpty {
-                StudioEmptyState(symbol: "magnifyingglass", title: "没有找到演唱", message: "试试搜索其他作品名称。",
-                                 actionTitle: "显示全部作品", action: { performanceSearch = "" })
+                StudioEmptyState(symbol: "magnifyingglass", title: String(localized: "No recordings found"), message: String(localized: "Try searching for another recording name."),
+                                 actionTitle: String(localized: "Show All Recordings"), action: { performanceSearch = "" })
             } else {
                 LazyVStack(spacing: 10) { ForEach(filteredPerformances) { performance in performanceRow(performance) } }
             }
@@ -304,14 +304,14 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(song.title).font(.headline).lineLimit(2).foregroundStyle(StudioTheme.ink)
                         if separated, let result = song.separation {
-                            Text("\(StudioTheme.duration(result.duration)) · \(song.lyrics == nil ? "可添加歌词" : "歌词就绪")")
+                            Text("\(StudioTheme.duration(result.duration)) · \(song.lyrics == nil ? String(localized: "Add lyrics") : String(localized: "Lyrics Ready"))")
                                 .font(.caption).foregroundStyle(.secondary)
                             if song.isFavorite == true {
-                                Label("已收藏", systemImage: "heart.fill").font(.caption2).foregroundStyle(StudioTheme.accent)
+                                Label(String(localized: "In Favorites"), systemImage: "heart.fill").font(.caption2).foregroundStyle(StudioTheme.accent)
                             }
                         } else {
                             Text(song.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            Text(song.separation == nil ? "待分离" : "伴奏已就绪")
+                            Text(song.separation == nil ? String(localized: "Not Separated") : String(localized: "Backing Track Ready"))
                                 .font(.caption2.weight(.medium)).foregroundStyle(StudioTheme.accent)
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading)
@@ -324,37 +324,39 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "mic.fill").frame(width: 44, height: 44)
                         .background(StudioTheme.blush, in: Circle())
-                }.accessibilityLabel("演唱\(song.title)")
+                }.accessibilityLabel(String(localized: "Sing \(song.title)"))
                     .foregroundStyle(StudioTheme.accent)
             } else {
                 Button { viewModel.toggleFavorite(song) } label: {
                     Image(systemName: song.isFavorite == true ? "heart.fill" : "heart")
                         .frame(width: 44, height: 44)
                 }
-                .accessibilityLabel("\(song.isFavorite == true ? "取消收藏" : "收藏")\(song.title)")
+                .accessibilityLabel(song.isFavorite == true
+                    ? String(localized: "Remove \(song.title) from Favorites")
+                    : String(localized: "Add \(song.title) to Favorites"))
                 .accessibilityIdentifier("library.favorite.\(song.id)")
                 .foregroundStyle(StudioTheme.accent)
             }
             Menu {
-                Button("查看歌曲", systemImage: "music.note") { viewModel.selectSong(song); isShowingSong = true }
-                Button(song.isFavorite == true ? "取消收藏" : "收藏歌曲", systemImage: song.isFavorite == true ? "heart.slash" : "heart") {
+                Button(String(localized: "View Song"), systemImage: "music.note") { viewModel.selectSong(song); isShowingSong = true }
+                Button(song.isFavorite == true ? String(localized: "Remove from Favorites") : String(localized: "Add to Favorites"), systemImage: song.isFavorite == true ? "heart.slash" : "heart") {
                     viewModel.toggleFavorite(song)
                 }
-                Button("重命名", systemImage: "pencil") { editedTitle = song.title; renamingSong = song }
+                Button(String(localized: "Rename"), systemImage: "pencil") { editedTitle = song.title; renamingSong = song }
                 if let result = viewModel.library.result(for: song) {
-                    Button("导出伴奏", systemImage: "square.and.arrow.up") {
-                        exportRequest = AudioExportRequest(sourceURL: result.accompanimentURL, title: song.title + "-伴奏")
+                    Button(String(localized: "Export Backing Track"), systemImage: "square.and.arrow.up") {
+                        exportRequest = AudioExportRequest(sourceURL: result.accompanimentURL, title: song.title + String(localized: "-Backing Track"))
                     }
-                    Button("导出人声", systemImage: "person.wave.2") {
-                        exportRequest = AudioExportRequest(sourceURL: result.vocalsURL, title: song.title + "-人声")
+                    Button(String(localized: "Export Vocals"), systemImage: "person.wave.2") {
+                        exportRequest = AudioExportRequest(sourceURL: result.vocalsURL, title: song.title + String(localized: "-Vocals"))
                     }
                 }
-                Button(separated ? "删除分离结果" : "删除歌曲", systemImage: "trash", role: .destructive) {
+                Button(separated ? String(localized: "Delete Separated Tracks") : String(localized: "Delete Song"), systemImage: "trash", role: .destructive) {
                     deletesSeparationOnly = separated
                     deletingSong = song
                 }
             } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(.secondary) }
-                .accessibilityLabel("\(song.title)的更多操作")
+                .accessibilityLabel(String(localized: "More actions for \(song.title)"))
         }
         .disabled(!viewModel.canManageLibrary)
         .padding(12).studioCard()
@@ -371,7 +373,7 @@ struct ContentView: View {
                         Text(performance.title).font(.headline).lineLimit(2)
                         Text(performance.createdAt, format: .dateTime.month().day().hour().minute())
                             .font(.caption).foregroundStyle(.secondary)
-                        Text("\(StudioTheme.duration(performance.duration)) · 回放与调整")
+                        Text(String(localized: "\(StudioTheme.duration(performance.duration)) · Listen and edit"))
                             .font(.caption2).foregroundStyle(StudioTheme.accent)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "play.circle.fill").font(.title2).foregroundStyle(StudioTheme.accent)
@@ -379,15 +381,15 @@ struct ContentView: View {
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
             Menu {
-                Button("回放与调整", systemImage: "slider.horizontal.3") { reviewingPerformance = performance }
-                Button("重命名作品", systemImage: "pencil") { editedTitle = performance.title; renamingPerformance = performance }
-                Button("导出演唱", systemImage: "square.and.arrow.up") {
+                Button(String(localized: "Listen and Edit"), systemImage: "slider.horizontal.3") { reviewingPerformance = performance }
+                Button(String(localized: "Rename Performance"), systemImage: "pencil") { editedTitle = performance.title; renamingPerformance = performance }
+                Button(String(localized: "Export Recording"), systemImage: "square.and.arrow.up") {
                     exportRequest = AudioExportRequest(sourceURL: viewModel.recording.store.mixURL(performance),
-                                                       title: performance.title + "-我的演唱")
+                                                       title: performance.title + String(localized: "-My Recording"))
                 }
-                Button("删除演唱", systemImage: "trash", role: .destructive) { deletingPerformance = performance }
+                Button(String(localized: "Delete Recording"), systemImage: "trash", role: .destructive) { deletingPerformance = performance }
             } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(.secondary) }
-                .accessibilityLabel("\(performance.title)演唱的更多操作")
+                .accessibilityLabel(String(localized: "More actions for the recording of \(performance.title)"))
         }
         .disabled(viewModel.recording.isBusy || viewModel.isProcessing || viewModel.isImporting)
         .padding(12).studioCard()
@@ -395,11 +397,11 @@ struct ContentView: View {
 
     private var recoveryCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("有一段演唱等待保存", systemImage: "arrow.clockwise.circle").font(.headline)
-            Text("录音已保留，可以继续保存为作品。").font(.caption).foregroundStyle(.secondary)
+            Label(String(localized: "A recording is waiting to be saved"), systemImage: "arrow.clockwise.circle").font(.headline)
+            Text(String(localized: "Your raw recording has been kept. You can try saving the performance again.")).font(.caption).foregroundStyle(.secondary)
             HStack {
-                Button("重试保存", action: viewModel.recording.retrySaving).buttonStyle(PrimaryActionButtonStyle())
-                Button("丢弃", role: .destructive) { isDiscardingRecording = true }.buttonStyle(SecondaryActionButtonStyle())
+                Button(String(localized: "Retry Saving"), action: viewModel.recording.retrySaving).buttonStyle(PrimaryActionButtonStyle())
+                Button(String(localized: "Discard"), role: .destructive) { isDiscardingRecording = true }.buttonStyle(SecondaryActionButtonStyle())
             }
         }.padding(18).studioCard()
     }
@@ -408,12 +410,12 @@ struct ContentView: View {
         HStack(spacing: 12) {
             ProgressView().tint(StudioTheme.accent)
             VStack(alignment: .leading, spacing: 5) {
-                Text(viewModel.selectedSong?.title ?? "正在导入歌曲").font(.subheadline.bold()).lineLimit(1)
+                Text(viewModel.selectedSong?.title ?? String(localized: "Importing song")).font(.subheadline.bold()).lineLimit(1)
                 Text(viewModel.statusText).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                 if viewModel.isSeparating { ProgressView(value: viewModel.progress).tint(StudioTheme.accent) }
             }
             Spacer(minLength: 0)
-            if viewModel.isProcessing { Button("取消", action: viewModel.cancel).font(.caption.bold()) }
+            if viewModel.isProcessing { Button(String(localized: "Cancel"), action: viewModel.cancel).font(.caption.bold()) }
         }
         .padding(16).background(.regularMaterial)
     }
@@ -437,7 +439,7 @@ struct ContentView: View {
             Text("\(title) · \(count)").font(.headline).accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             Menu {
-                Picker("排序方式", selection: sort) {
+                Picker(String(localized: "Sort By"), selection: sort) {
                     ForEach(LibrarySortOrder.allCases, id: \.self) { order in
                         Label(order.label, systemImage: order.symbol).tag(order)
                     }
@@ -446,7 +448,7 @@ struct ContentView: View {
                 Label(sort.wrappedValue.label, systemImage: "arrow.up.arrow.down")
                     .font(.caption.weight(.semibold)).padding(.vertical, 12)
             }
-            .accessibilityLabel("\(title)排序，\(sort.wrappedValue.label)")
+            .accessibilityLabel(String(localized: "Sort \(title), \(sort.wrappedValue.label)"))
             .accessibilityIdentifier("library.sort.\(identifier)")
         }
     }

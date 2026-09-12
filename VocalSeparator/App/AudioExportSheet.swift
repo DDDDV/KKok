@@ -19,17 +19,17 @@ struct AudioExportSheet: View {
                         if let errorText {
                             Image(systemName: "exclamationmark.circle").font(.largeTitle)
                             Text(errorText).multilineTextAlignment(.center)
-                            Button("重试") { self.errorText = nil; retryID = UUID() }
+                            Button(String(localized: "Retry")) { self.errorText = nil; retryID = UUID() }
                                 .buttonStyle(.borderedProminent)
                         } else {
                             ProgressView()
-                            Text("正在准备\(request.format.title)…").font(.headline)
+                            Text(String(localized: "Preparing \(request.format.title)…")).font(.headline)
                             Text(request.title).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
                     .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle("导出音频").navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
+                    .navigationTitle(String(localized: "Export Audio")).navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button(String(localized: "Cancel")) { dismiss() } } }
                 }
             }
         }

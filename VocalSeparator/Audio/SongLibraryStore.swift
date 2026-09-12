@@ -28,19 +28,19 @@ struct LibrarySong: Codable, Identifiable, Equatable, Sendable {
     }
 
     var lyricsStatusText: String {
-        if let lyrics { return lyrics.lyrics.isWordTimed ? "逐字歌词已就绪" : "同步歌词已就绪" }
+        if let lyrics { return lyrics.lyrics.isWordTimed ? String(localized: "Word-synced lyrics ready") : String(localized: "Synced lyrics ready") }
         if let metadata, metadata.embeddedLyrics != nil {
-            return metadata.hasTimedLyrics ? "已发现内嵌歌词 · 未启用同步" : "有内嵌歌词 · 无可用时间轴"
+            return metadata.hasTimedLyrics ? String(localized: "Embedded lyrics found · Sync not enabled") : String(localized: "Embedded lyrics available · No usable timing")
         }
-        guard let metadata else { return "歌词待检测" }
-        return metadata.didReadMetadata ? "未发现内嵌歌词" : "歌词读取未完成"
+        guard let metadata else { return String(localized: "Lyrics not checked") }
+        return metadata.didReadMetadata ? String(localized: "No embedded lyrics found") : String(localized: "Lyrics could not be fully read")
     }
 }
 
 enum LibrarySortOrder: String, CaseIterable {
     case recent, title
 
-    var label: String { self == .recent ? "最近添加" : "名称排序" }
+    var label: String { self == .recent ? String(localized: "Recently Added") : String(localized: "Sort by Name") }
     var symbol: String { self == .recent ? "clock" : "textformat.abc" }
 }
 
@@ -156,7 +156,7 @@ struct SongLibraryStore: Sendable {
         // A manually selected LRC always wins. Plain lyrics remain available to read,
         // but do not receive invented timing or enter the karaoke clock.
         if updated.lyrics == nil, let timed {
-            updated.lyrics = ImportedLyrics(displayName: "内嵌歌词", lyrics: timed)
+            updated.lyrics = ImportedLyrics(displayName: String(localized: "Embedded Lyrics"), lyrics: timed)
         }
         return updated
     }

@@ -66,7 +66,7 @@ final class PerformanceEditor: ObservableObject {
                 try playback.play()
             }
         } catch {
-            errorText = "试听失败：\(error.localizedDescription)"
+            errorText = String(localized: "Preview failed: \(error.localizedDescription)")
         }
     }
 
@@ -95,11 +95,11 @@ final class PerformanceEditor: ObservableObject {
                 playback.seek(to: time)
             } catch {
                 playback.stop()
-                errorText = "调整已保存，但暂时无法回放：\(error.localizedDescription)"
+                errorText = String(localized: "Changes were saved, but playback is unavailable: \(error.localizedDescription)")
             }
             clearPreview()
         } catch {
-            if operationID == id { errorText = "保存调整失败：\(error.localizedDescription)" }
+            if operationID == id { errorText = String(localized: "Failed to save changes: \(error.localizedDescription)") }
         }
     }
 
@@ -138,7 +138,7 @@ final class PerformanceEditor: ObservableObject {
         if let preview, preview.settings == settings { return preview }
         clearPreview()
         try FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
-        let output = previewDirectory.appendingPathComponent("试听.wav")
+        let output = previewDirectory.appendingPathComponent("preview.wav")
         let store = store
         let performance = performance
         let settings = settings

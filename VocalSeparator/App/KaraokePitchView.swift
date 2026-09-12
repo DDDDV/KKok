@@ -25,22 +25,22 @@ struct KaraokePitchView: View {
         return last.reliableMidi
     }
     private var feedback: String {
-        if isPreparing { return "正在生成参考旋律…" }
-        if !isRecording { return "跟着音符，唱出你的旋律" }
-        if unavailableReason != nil { return "本次暂不评分" }
-        guard let target else { return "无参考音符 · 暂不评分" }
-        guard let actual else { return "等待歌声" }
-        if mode.isMatch(cents: (actual - target) * 100) { return "很准，保持住" }
-        return actual > target ? "偏高 ↓" : "偏低 ↑"
+        if isPreparing { return String(localized: "Preparing the reference melody…") }
+        if !isRecording { return String(localized: "Follow the notes and sing along") }
+        if unavailableReason != nil { return String(localized: "Scoring unavailable for this performance") }
+        guard let target else { return String(localized: "No reference note · Not scored") }
+        guard let actual else { return String(localized: "Waiting for your voice") }
+        if mode.isMatch(cents: (actual - target) * 100) { return String(localized: "Right on pitch. Keep it up!") }
+        return actual > target ? String(localized: "Too high ↓") : String(localized: "Too low ↑")
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "waveform.path").foregroundStyle(violet)
-                Text("音准").font(.caption.weight(.semibold))
+                Text(String(localized: "Pitch")).font(.caption.weight(.semibold))
                 Spacer()
-                Text("得分").font(.caption).foregroundStyle(.white.opacity(0.5))
+                Text(String(localized: "Score")).font(.caption).foregroundStyle(.white.opacity(0.5))
                 Text(report?.score.map(String.init) ?? "—")
                     .font(.system(size: 22, weight: .semibold, design: .rounded)).monospacedDigit()
                     .contentTransition(.numericText())
@@ -114,7 +114,7 @@ struct KaraokePitchView: View {
                     }
                 }
                 if reference == nil {
-                    context.draw(Text(isPreparing ? "正在分析原唱音高" : "开始演唱后显示音符轨道")
+                    context.draw(Text(isPreparing ? String(localized: "Analyzing the original vocal pitch") : String(localized: "Start singing to see the notes"))
                         .font(.caption).foregroundColor(.white.opacity(0.35)), at: CGPoint(x: size.width * 0.6, y: size.height / 2))
                 }
             }
@@ -122,14 +122,14 @@ struct KaraokePitchView: View {
             HStack {
                 Text(feedback).foregroundStyle(violet)
                 Spacer()
-                Text("\(mode.title) · 原调").foregroundStyle(.white.opacity(0.35))
+                Text(String(localized: "\(mode.title) · Original key")).foregroundStyle(.white.opacity(0.35))
             }.font(.system(size: 11)).padding(.horizontal, 20).padding(.top, 8)
         }
         .padding(.vertical, 10)
         .background(LinearGradient(colors: [violet.opacity(0.05), .clear], startPoint: .leading, endPoint: .trailing))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("音准轨道，\(mode.title)，\(feedback)")
-        .accessibilityValue(report?.score.map { "当前得分 \($0) 分" } ?? "暂无分数")
+        .accessibilityLabel(String(localized: "Pitch track, \(mode.title), \(feedback)"))
+        .accessibilityValue(report?.score.map { String(localized: "Current score: \($0) points") } ?? String(localized: "No score yet"))
         .accessibilityIdentifier("karaoke.pitch")
         .onChange(of: reference, initial: true) { _, reference in
             let pitches = (reference?.frames ?? []).compactMap(\.reliableMidi).sorted()
@@ -152,11 +152,11 @@ struct PitchScoreCard: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack {
-                Label("音准成绩", systemImage: "waveform.path").font(.headline)
+                Label(String(localized: "Pitch Results"), systemImage: "waveform.path").font(.headline)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(report.mode.title)
-                    Text(report.recordedDuration + 0.5 < report.songDuration ? "已录片段" : "整首演唱")
+                    Text(report.recordedDuration + 0.5 < report.songDuration ? String(localized: "Recorded Excerpt") : String(localized: "Full Performance"))
                 }.font(.caption).foregroundStyle(.secondary)
             }
             summaryLayout {
@@ -166,23 +166,23 @@ struct PitchScoreCard: View {
                         .stroke(violet, style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
                     VStack(spacing: 0) {
                         Text(report.score.map(String.init) ?? "—").font(.system(size: 38, weight: .semibold, design: .rounded))
-                        Text("音准分").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(String(localized: "Pitch score")).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }.frame(width: 104, height: 104)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(report.assessment).font(.title3.bold()).foregroundStyle(violet)
                     if report.score != nil {
-                        Text("音准命中 \(report.matchedPercent)%").font(.subheadline)
-                        Text("演唱覆盖 \(report.voicedPercent)%").font(.subheadline).foregroundStyle(.secondary)
+                        Text(String(localized: "Pitch accuracy: \(report.matchedPercent)%")).font(.subheadline)
+                        Text(String(localized: "Vocal coverage: \(report.voicedPercent)%")).font(.subheadline).foregroundStyle(.secondary)
                     } else {
-                        Text(report.unavailableReason ?? "暂无评分").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        Text(report.localizedUnavailableReason ?? String(localized: "No rating yet")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text("以原唱参考旋律为准，仅评价本次录下部分的音高与演唱覆盖；不评价音色、歌词或情感。")
+            Text(String(localized: "Based on the original vocal melody, this score measures pitch and vocal coverage only for the recorded section. It does not assess tone, lyrics, or expression."))
                 .font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
             if report.score != nil, !report.phrases.isEmpty {
-                DisclosureGroup("逐句成绩 · 点击回听") {
+                DisclosureGroup(String(localized: "Phrase Scores · Tap to Listen")) {
                     VStack(spacing: 12) {
                         ForEach(report.phrases) { phrase in
                             Button { replayPhrase?(phrase.start) } label: {
@@ -193,7 +193,7 @@ struct PitchScoreCard: View {
                                     Text(phrase.score.map { "\($0)" } ?? "—").font(.headline.monospacedDigit()).foregroundStyle(violet)
                                 }.padding(.vertical, 4)
                             }.buttonStyle(.plain).disabled(replayPhrase == nil)
-                                .accessibilityLabel("\(phrase.text)，\(phrase.score.map { "\($0) 分，回听" } ?? "无可靠参考音符")")
+                                .accessibilityLabel(String(localized: "\(phrase.text), \(phrase.score.map { String(localized: "\($0) points, tap to listen") } ?? String(localized: "No reliable reference notes"))"))
                         }
                     }.padding(.top, 12)
                 }.font(.subheadline).tint(violet)

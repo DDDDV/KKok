@@ -30,7 +30,7 @@ enum VocalTranscriptionError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .noRecognizableSpeech:
-            return "没有从分离后的人声中识别出可用文本。"
+            return String(localized: "No usable text was recognized in the separated vocals.")
         }
     }
 }

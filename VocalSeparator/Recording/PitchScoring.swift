@@ -22,13 +22,15 @@ struct PitchScoreReport: Codable, Equatable, Sendable {
     var scoringMode: PitchScoringMode? = nil
     var mode: PitchScoringMode { scoringMode ?? .strict }
 
+    var localizedUnavailableReason: String? { unavailableReason.map(SavedMessageLocalization.text) }
+
     var assessment: String {
-        guard let score else { return "暂未评分" }
+        guard let score else { return String(localized: "Not scored yet") }
         switch score {
-        case 90...100: return "音准出色"
-        case 75..<90: return "唱得很稳"
-        case 60..<75: return "继续练习"
-        default: return "跟着旋律再试一次"
+        case 90...100: return String(localized: "Excellent pitch")
+        case 75..<90: return String(localized: "Steady singing")
+        case 60..<75: return String(localized: "Keep practicing")
+        default: return String(localized: "Follow the melody and try again")
         }
     }
 }
@@ -88,7 +90,7 @@ struct PitchScorer {
         // Only complete centred analysis windows can be judged at an early stop.
         let comparisonEnd = max(0, end - Double(PitchDetector.window) / (2 * PitchDetector.sampleRate))
         let stats = statistics(from: 0, to: comparisonEnd)
-        let reason = unavailableReason ?? (stats.seconds < 1 ? "有效参考旋律不足 1 秒，暂不能评分" : nil)
+        let reason = unavailableReason ?? (stats.seconds < 1 ? String(localized: "Less than one second of usable reference melody. Scoring is unavailable.") : nil)
         let lines = lyrics?.lines ?? []
         let phrases = lines.enumerated().compactMap { index, line -> PitchPhraseScore? in
             guard line.start < end else { return nil }

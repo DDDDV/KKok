@@ -19,7 +19,7 @@ final class SingingRecordingController: ObservableObject {
     @Published private(set) var pitchTrace: [PitchFrame] = []
     @Published private(set) var livePitchReport: PitchScoreReport?
     @Published private(set) var scoringMessage: String?
-    @Published private(set) var preparationMessage = "正在准备麦克风…"
+    @Published private(set) var preparationMessage = String(localized: "Preparing the microphone…")
     @Published private(set) var activeScoringSettings = PitchScoringSettings()
     @Published private(set) var audioRoute: SingingAudioRoute
 
@@ -70,17 +70,17 @@ final class SingingRecordingController: ObservableObject {
             if let pending {
                 activeScoringSettings = store.scoringSettings(for: pending.id)
                 state = .needsRecovery
-                notice = "发现尚未完成保存的录音，可以重试生成演唱。"
+                notice = String(localized: "An unfinished recording was found. You can retry saving the performance.")
             }
-        } catch { errorText = "读取本机演唱失败：\(error.localizedDescription)" }
+        } catch { errorText = String(localized: "Unable to load local recordings: \(error.localizedDescription)") }
         self.capture.onCompletion = { [weak self] success in
-            self?.finish(notice: success ? nil : "音频设备停止工作，已尝试保存录下的部分。")
+            self?.finish(notice: success ? nil : String(localized: "The audio device stopped working. An attempt was made to save the recorded portion."))
         }
         observers.append(NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
         ) { [weak self] notification in
             if notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.began.rawValue {
-                Task { @MainActor [weak self] in self?.handleInterruption("演唱被系统中断，录音已结束。") }
+                Task { @MainActor [weak self] in self?.handleInterruption(String(localized: "The system interrupted your performance. Recording ended.")) }
             }
         })
         observers.append(NotificationCenter.default.addObserver(
@@ -95,7 +95,7 @@ final class SingingRecordingController: ObservableObject {
         observers.append(NotificationCenter.default.addObserver(
             forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.handleInterruption("音频服务已重启，请检查并重试保存录音。") }
+            Task { @MainActor [weak self] in self?.handleInterruption(String(localized: "Audio services restarted. Check your recording and try saving again.")) }
         })
     }
 
@@ -122,7 +122,7 @@ final class SingingRecordingController: ObservableObject {
         referenceSource = result.vocalsURL
         lastScoreTime = -1
         completedPerformance = nil
-        preparationMessage = "正在准备麦克风…"
+        preparationMessage = String(localized: "Preparing the microphone…")
         currentTime = 0
         duration = result.duration
         let id = UUID()
@@ -139,21 +139,21 @@ final class SingingRecordingController: ObservableObject {
         do {
             let store = store
             let analyzeReference = analyzeReference
-            if scoringSettings.isEnabled { preparationMessage = "正在分析参考旋律，首次演唱需要稍候…" }
+            if scoringSettings.isEnabled { preparationMessage = String(localized: "Analyzing the reference melody. Your first performance may take a moment…") }
             let task = Task.detached(priority: .userInitiated) { () throws -> (PendingPerformance, PitchReference?, String?) in
                 var reference: PitchReference?
                 var reason: String?
                 if scoringSettings.isEnabled {
                     do { reference = try analyzeReference(result.vocalsURL) }
                     catch is CancellationError { throw CancellationError() }
-                    catch { reason = "参考旋律分析失败，本次仅保存录音" }
+                    catch { reason = String(localized: "Reference melody analysis failed. This performance will be recorded without a score.") }
                 }
                 try Task.checkCancellation()
                 let draft = try store.prepare(
                     title: (result.sourceName as NSString).deletingPathExtension,
                     lyrics: lyrics, accompanimentURL: result.accompanimentURL,
                     scoring: scoringSettings.isEnabled
-                        ? PitchScoringContext(reference: reference, unavailableReason: "录音尚未就绪，暂未评分",
+                        ? PitchScoringContext(reference: reference, unavailableReason: String(localized: "Recording is not ready. No score yet."),
                                               scoringMode: scoringSettings.mode) : nil
                 )
                 return (draft, reference, reason)
@@ -168,7 +168,7 @@ final class SingingRecordingController: ObservableObject {
             pending = draft
             pitchReference = reference.map { PitchReference(duration: $0.duration, frames: $0.scorableFrames) }
             scorer = reference.map { PitchScorer(reference: $0, mode: scoringSettings.mode) }
-            preparationMessage = "正在准备麦克风…"
+            preparationMessage = String(localized: "Preparing the microphone…")
             capture.setPitchAnalysisEnabled(scoringSettings.isEnabled)
             try capture.start(
                 accompanimentURL: store.accompanimentURL(draft.id), vocalsURL: result.vocalsURL,
@@ -214,7 +214,7 @@ final class SingingRecordingController: ObservableObject {
         audioRoute = route
         guard state == .recording, let recordingRoute,
               !route.hasSameCaptureConfiguration(as: recordingRoute) else { return }
-        finish(notice: "音频设备已切换，已结束演唱并保存录下的部分。请确认耳机连接后重新开始。")
+        finish(notice: String(localized: "The audio device changed. The performance ended and the recorded portion was saved. Check your headphones before starting again."))
     }
 
     func selectPitchSong(_ vocalsURL: URL) {
@@ -280,7 +280,7 @@ final class SingingRecordingController: ObservableObject {
             if playback.currentURL == store.mixURL(performance) { playback.stop() }
             try store.remove(performance.id)
             performances.removeAll { $0.id == performance.id }
-        } catch { errorText = "删除演唱失败：\(error.localizedDescription)" }
+        } catch { errorText = String(localized: "Failed to delete recording: \(error.localizedDescription)") }
     }
 
     func didSaveAdjustments(_ performance: SingingPerformance) {
@@ -296,10 +296,10 @@ final class SingingRecordingController: ObservableObject {
             didSaveAdjustments(updated)
             if completedPerformance?.id == updated.id { completedPerformance = updated }
             errorText = nil
-        } catch { errorText = "重命名失败：\(error.localizedDescription)" }
+        } catch { errorText = String(localized: "Rename failed: \(error.localizedDescription)") }
     }
 
-    func handleBackground() { handleInterruption("应用已进入后台，录音已结束。") }
+    func handleBackground() { handleInterruption(String(localized: "The app entered the background. Recording ended.")) }
 
     private func handleInterruption(_ message: String) {
         if state == .preparing {
@@ -307,7 +307,7 @@ final class SingingRecordingController: ObservableObject {
             preparationTask = nil
             startID = nil
             state = .idle
-            notice = "演唱准备已取消，返回后可重新开始。"
+            notice = String(localized: "Performance preparation was canceled. You can start again when you return.")
         } else if state == .recording {
             finish(notice: message)
         }
@@ -336,7 +336,7 @@ final class SingingRecordingController: ObservableObject {
                 state = .idle
             } catch {
                 // Keep the mic, accompaniment and draft for retry, including across relaunch.
-                errorText = "演唱尚未保存，原始录音已保留。\(error.localizedDescription)"
+                errorText = String(localized: "The performance has not been saved. Your raw recording has been kept. \(error.localizedDescription)")
                 state = .needsRecovery
             }
             mixTask = nil

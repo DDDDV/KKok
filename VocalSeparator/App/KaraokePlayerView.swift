@@ -22,10 +22,10 @@ struct KaraokeSessionView: View {
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .interactiveDismissDisabled(recording.isBusy)
-        .confirmationDialog("结束这次演唱？", isPresented: $isConfirmingExit, titleVisibility: .visible) {
-            Button("结束并保存") { recording.finish() }
-            Button("继续演唱", role: .cancel) {}
-        } message: { Text("已录下的歌声会保存为作品。") }
+        .confirmationDialog(String(localized: "End this performance?"), isPresented: $isConfirmingExit, titleVisibility: .visible) {
+            Button(String(localized: "Finish and Save")) { recording.finish() }
+            Button(String(localized: "Keep Singing"), role: .cancel) {}
+        } message: { Text(String(localized: "The vocals recorded so far will be saved as a performance.")) }
         .sheet(item: $reviewingPerformance) { performance in
             PerformanceReviewView(performance: performance, store: recording.store, playback: playback,
                                   onSave: recording.didSaveAdjustments)
@@ -74,7 +74,7 @@ struct KaraokePlayerView: View {
                             Text(result.sourceName).font(compact ? .title3.bold() : .title2.bold()).multilineTextAlignment(.center).lineLimit(3)
                             HStack(spacing: 6) {
                                 Circle().fill(isRecording ? .red : StudioTheme.cream).frame(width: 5, height: 5)
-                                Text(isRecording ? "正在录制 · 让歌声留在此刻" : "专属舞台 · 跟着音乐，唱给自己")
+                                Text(isRecording ? String(localized: "Recording · Make this moment yours") : String(localized: "Your own stage · Sing for yourself"))
                                     .font(.caption).foregroundStyle(.white.opacity(0.55))
                             }
                         }
@@ -102,10 +102,10 @@ struct KaraokePlayerView: View {
                             VStack(spacing: 12) {
                                 RecordArtwork(title: result.sourceName, size: artworkSize, artworkURL: artworkURL)
                                     .rotationEffect(.degrees(-8)).shadow(color: .black.opacity(0.3), radius: 30, y: 20)
-                                Text(isRecording ? "此刻，只有音乐和你。" : "没有同步歌词，也可以尽情唱。")
+                                Text(isRecording ? String(localized: "Just you and the music.") : String(localized: "No synced lyrics? Sing your heart out."))
                                     .font(geometry.size.height < 650 ? .subheadline : .headline)
                                     .foregroundStyle(.white.opacity(0.72))
-                                Text("可在歌曲详情中添加同步歌词")
+                                Text(String(localized: "Add synced lyrics in song details"))
                                     .font(.caption).foregroundStyle(.white.opacity(0.38))
                             }
                             .frame(maxWidth: .infinity).frame(height: lyricsHeight)
@@ -139,7 +139,7 @@ struct KaraokePlayerView: View {
                 Image(systemName: "chevron.down").font(.system(size: 18, weight: .medium))
                     .frame(width: 44, height: 44).background(.white.opacity(0.06), in: Circle())
             }
-            .accessibilityLabel("退出演唱")
+            .accessibilityLabel(String(localized: "Leave Singing"))
             .disabled(close == nil || recording.state == .preparing || recording.state == .mixing)
             Spacer()
             Text("S I N G   Y O U R   M O M E N T")
@@ -148,7 +148,7 @@ struct KaraokePlayerView: View {
             SingingRoutePicker()
                 .frame(width: 44, height: 44)
                 .disabled(recording.isBusy)
-                .accessibilityLabel("选择音频输出设备")
+                .accessibilityLabel(String(localized: "Choose Audio Output"))
         }
     }
 
@@ -159,20 +159,20 @@ struct KaraokePlayerView: View {
                     recording.setVocalsEnabled(enabled)
                     playback.setVocalsEnabled(enabled)
                 })) {
-                    Label("原唱", systemImage: "person.wave.2")
+                    Label(String(localized: "Original"), systemImage: "person.wave.2")
                         .font(.caption.bold())
                 }
                 .fixedSize().tint(StudioTheme.accent)
-                .accessibilityIdentifier("karaoke.originalVocals").accessibilityLabel("原唱人声")
-                .accessibilityHint("演唱时可随时开关，伴奏继续播放")
+                .accessibilityIdentifier("karaoke.originalVocals").accessibilityLabel(String(localized: "Original Vocals"))
+                .accessibilityHint(String(localized: "Turn original vocals on or off while singing. The backing track keeps playing."))
                 .disabled(recording.isBusy && !isRecording)
                 Spacer()
                 if isRecording {
                     ProgressView(value: Double(recording.level)).tint(StudioTheme.cream)
-                        .frame(width: 60).accessibilityLabel("麦克风音量")
+                        .frame(width: 60).accessibilityLabel(String(localized: "Microphone Level"))
                     Text("REC").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.red)
                 } else {
-                    Text(recording.audioRoute.usesHeadphones ? "耳机已连接" : "建议佩戴耳机")
+                    Text(recording.audioRoute.usesHeadphones ? String(localized: "Headphones Connected") : String(localized: "Headphones Recommended"))
                         .font(.system(size: 10)).foregroundStyle(.white.opacity(0.42))
                 }
             }
@@ -182,7 +182,7 @@ struct KaraokePlayerView: View {
                     if editing { playback.beginScrubbing() } else { playback.endScrubbing() }
                 }
                 .tint(.white.opacity(0.85)).disabled(playback.currentURL == nil || recording.isBusy)
-                .accessibilityLabel("播放进度")
+                .accessibilityLabel(String(localized: "Playback Progress"))
                 HStack {
                     Text(StudioTheme.duration(clockTime))
                     Spacer()
@@ -191,7 +191,7 @@ struct KaraokePlayerView: View {
             }
             if recording.state == .preparing || recording.state == .mixing {
                 ProgressView(recording.state == .mixing
-                             ? (recording.activeScoringSettings.isEnabled ? "正在评分并保存演唱…" : "正在保存演唱…")
+                             ? (recording.activeScoringSettings.isEnabled ? String(localized: "Scoring and saving recording…") : String(localized: "Saving recording…"))
                              : recording.preparationMessage)
                     .tint(.white).frame(height: 86)
             } else {
@@ -199,9 +199,9 @@ struct KaraokePlayerView: View {
                     Button { playback.seek(to: max(0, playback.currentTime - 10)) } label: {
                         VStack(spacing: 8) {
                             Image(systemName: "gobackward.10").font(.title2)
-                            Text("重听").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                            Text(String(localized: "Replay")).font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
                         }.frame(width: 48, height: 64)
-                    }.accessibilityLabel("后退十秒").disabled(recording.isBusy)
+                    }.accessibilityLabel(String(localized: "Rewind Ten Seconds")).disabled(recording.isBusy)
                     Button {
                         if isRecording { recording.finish() } else { startSinging() }
                     } label: {
@@ -214,24 +214,24 @@ struct KaraokePlayerView: View {
                                 .foregroundStyle(isRecording ? .white : StudioTheme.stage)
                         }
                     }
-                    .accessibilityLabel(isRecording ? "结束并保存演唱" : "开始演唱")
+                    .accessibilityLabel(isRecording ? String(localized: "Finish and Save Recording") : String(localized: "Start Singing"))
                     .accessibilityIdentifier("karaoke.record")
                     .disabled(recording.isBusy && !isRecording)
                     Button(action: togglePlayback) {
                         VStack(spacing: 8) {
                             Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").font(.title2)
-                            Text(playback.isPlaying ? "暂停" : "试听").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                            Text(playback.isPlaying ? String(localized: "Pause") : String(localized: "Preview")).font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
                         }.frame(width: 48, height: 64)
-                    }.accessibilityLabel(playback.isPlaying ? "暂停试听" : "试听伴奏").disabled(recording.isBusy)
+                    }.accessibilityLabel(playback.isPlaying ? String(localized: "Pause Preview") : String(localized: "Preview Backing Track")).disabled(recording.isBusy)
                 }
                 .buttonStyle(.plain)
                 if !compact {
-                    Text(isRecording ? "点击结束 · 伴奏结束后自动保存" : "点击开始演唱 · 从头录制你的声音")
+                    Text(isRecording ? String(localized: "Tap to finish · Saves automatically when the track ends") : String(localized: "Tap to sing · Records your voice from the beginning"))
                         .font(.caption).foregroundStyle(.white.opacity(0.6))
                 }
             }
             VStack(spacing: 4) {
-                Label(recording.audioRoute.outputName.isEmpty ? "等待音频设备" : recording.audioRoute.outputName,
+                Label(recording.audioRoute.outputName.isEmpty ? String(localized: "Waiting for an audio device") : recording.audioRoute.outputName,
                       systemImage: recording.audioRoute.symbol)
                     .font(.caption)
                 Text(recording.audioRoute.guidance(isRecording: isRecording))
@@ -249,7 +249,7 @@ struct KaraokePlayerView: View {
                 Text(error).font(.caption).foregroundStyle(.orange)
             }
             if recording.permissionDenied {
-                Button("打开麦克风设置") {
+                Button(String(localized: "Open Microphone Settings")) {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }.font(.subheadline)
             }

@@ -4,11 +4,11 @@ enum PitchScoringMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case casual, strict
 
     var id: String { rawValue }
-    var title: String { self == .casual ? "休闲模式" : "严格模式" }
+    var title: String { self == .casual ? String(localized: "Casual Mode") : String(localized: "Strict Mode") }
     var detail: String {
         self == .casual
-            ? "对轻微跑调更宽容，适合轻松跟唱；漏唱仍会扣分。"
-            : "按较小的音高偏差评分，适合认真练习音准。"
+            ? String(localized: "More forgiving of small pitch differences for relaxed singing. Missed notes still reduce your score.")
+            : String(localized: "Uses smaller pitch tolerances for focused practice.")
     }
     var fullCreditCents: Double { self == .casual ? 50 : 25 }
     var zeroCreditCents: Double { self == .casual ? 200 : 100 }

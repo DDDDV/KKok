@@ -23,7 +23,7 @@ final class SeparationViewModel: ObservableObject {
     @Published private(set) var isSeparating = false
     @Published private(set) var isTranscribing = false
     @Published private(set) var progress = 0.0
-    @Published private(set) var statusText = "导入歌曲，可同时选择对应歌词"
+    @Published private(set) var statusText = String(localized: "Import a song, optionally with its lyrics")
     @Published var alert: UserAlert?
     @Published private(set) var songs: [LibrarySong] = []
     @Published private(set) var selectedSongID: UUID?
@@ -57,7 +57,7 @@ final class SeparationViewModel: ObservableObject {
             songs = try library.load()
         } catch {
             isLibraryAvailable = false
-            alert = UserAlert(title: "无法读取歌曲库", message: "歌曲文件仍保留在本机，请重启后重试。\(error.localizedDescription)")
+            alert = UserAlert(title: String(localized: "Unable to Read Song Library"), message: String(localized: "Your song files are still on this device. Restart and try again. \(error.localizedDescription)"))
         }
         recordingChanges = self.recording.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -86,7 +86,7 @@ final class SeparationViewModel: ObservableObject {
         resetTranscription()
         transcript = current.transcript
         hasRequestedTranscription = transcript != nil
-        statusText = result == nil ? "歌曲已就绪，可以开始分离" : "伴奏已准备好，可以开始唱歌"
+        statusText = result == nil ? String(localized: "Song ready. You can start separation.") : String(localized: "Backing track ready. You can start singing.")
         extractMetadataIfNeeded(for: current)
     }
 
@@ -94,7 +94,7 @@ final class SeparationViewModel: ObservableObject {
     private func extractMetadataIfNeeded(for song: LibrarySong) {
         guard song.metadata == nil else { return }
         isImporting = true
-        statusText = "正在读取封面与歌词…"
+        statusText = String(localized: "Reading artwork and lyrics…")
         let library = library
         let extractor = metadataExtractor
         Task { [weak self] in
@@ -115,8 +115,8 @@ final class SeparationViewModel: ObservableObject {
                     throw error
                 }
                 if selectedSongID == song.id { importedLyrics = selectedSong?.lyrics }
-                statusText = result == nil ? "歌曲已就绪，可以开始分离" : "伴奏已准备好，可以开始唱歌"
-            } catch { present(error: error, title: "无法保存歌曲信息") }
+                statusText = result == nil ? String(localized: "Song ready. You can start separation.") : String(localized: "Backing track ready. You can start singing.")
+            } catch { present(error: error, title: String(localized: "Unable to Save Song Information")) }
         }
     }
 
@@ -127,14 +127,14 @@ final class SeparationViewModel: ObservableObject {
         do {
             try updateSong(song.id) { $0.title = title }
             if selectedSongID == song.id, let current = selectedSong { selectSong(current) }
-        } catch { present(error: error, title: "重命名失败") }
+        } catch { present(error: error, title: String(localized: "Rename Failed")) }
     }
 
     func toggleFavorite(_ song: LibrarySong) {
         guard canManageLibrary else { return }
         do {
             try updateSong(song.id) { $0.isFavorite = !($0.isFavorite ?? false) }
-        } catch { present(error: error, title: "无法更新收藏") }
+        } catch { present(error: error, title: String(localized: "Unable to Update Favorites")) }
     }
 
     /// Opens a candidate from the visible filtered list, without starting recording.
@@ -172,7 +172,7 @@ final class SeparationViewModel: ObservableObject {
                 }
             }
             try library.removeFiles(for: song, includingSource: !separationOnly)
-        } catch { present(error: error, title: "删除未完全完成") }
+        } catch { present(error: error, title: String(localized: "Deletion Incomplete")) }
     }
 
     private func updateSong(_ id: UUID, change: (inout LibrarySong) -> Void) throws {
@@ -207,7 +207,7 @@ final class SeparationViewModel: ObservableObject {
         switch importResult {
         case .failure(let error):
             if (error as NSError).code != NSUserCancelledError {
-                present(error: error, title: "无法选择文件")
+                present(error: error, title: String(localized: "Unable to Select Files"))
             }
         case .success(let urls):
             guard !urls.isEmpty else { return }
@@ -219,11 +219,11 @@ final class SeparationViewModel: ObservableObject {
             let audioURLs = lyricsOnly ? [] : urls.filter { !lyricURLs.contains($0) }
             guard lyricURLs.count <= 1, (lyricURLs.isEmpty || audioURLs.count <= 1),
                   (!audioURLs.isEmpty || (!lyricURLs.isEmpty && selectedAudio != nil)) else {
-                alert = UserAlert(title: "请确认歌词对应的歌曲", message: "可一次导入多首歌曲；带歌词导入时，请选择一首歌曲和一份对应歌词。")
+                alert = UserAlert(title: String(localized: "Choose the Song for These Lyrics"), message: String(localized: "You can import multiple songs at once. To include lyrics, select one song and its matching lyrics file."))
                 return
             }
             isImporting = true
-            statusText = "正在导入歌曲并读取封面与歌词…"
+            statusText = String(localized: "Importing songs and reading artwork and lyrics…")
             if audioURLs.isEmpty { playback.pause() } else { playback.stop() }
             let library = library
             let extractor = metadataExtractor
@@ -266,13 +266,13 @@ final class SeparationViewModel: ObservableObject {
                         if let id = selectedSongID { try updateSong(id) { $0.lyrics = lyrics } }
                         importedLyrics = lyrics
                     }
-                    statusText = result == nil ? "已导入，点击开始分离" : "歌词已更新，可以开始唱歌"
+                    statusText = result == nil ? String(localized: "Imported. Tap to start separation.") : String(localized: "Lyrics updated. You can start singing.")
                 } catch {
-                    present(error: error, title: "导入失败")
+                    present(error: error, title: String(localized: "Import Failed"))
                     if let selectedAudio {
-                        statusText = "导入失败，仍可使用 \(selectedAudio.displayName)"
+                        statusText = String(localized: "Import failed. You can still use \(selectedAudio.displayName).")
                     } else {
-                        statusText = "请选择系统可解码的音频文件"
+                        statusText = String(localized: "Choose an audio file that iOS can decode")
                     }
                 }
                 isImporting = false
@@ -289,7 +289,7 @@ final class SeparationViewModel: ObservableObject {
         progress = 0
         isSeparating = true
         UIApplication.shared.isIdleTimerDisabled = true
-        statusText = "正在准备…"
+        statusText = String(localized: "Preparing…")
 
         processingTask = Task { [weak self] in
             guard let self else { return }
@@ -317,13 +317,13 @@ final class SeparationViewModel: ObservableObject {
                     try? library.removeFiles(for: previousSong, includingSource: false)
                 }
                 progress = 1
-                statusText = "伴奏已准备好，可以开始唱歌"
+                statusText = String(localized: "Backing track ready. You can start singing.")
             } catch is CancellationError {
-                statusText = "已取消"
+                statusText = String(localized: "Canceled")
                 progress = 0
             } catch {
-                present(error: error, title: "分离失败")
-                statusText = "处理未完成"
+                present(error: error, title: String(localized: "Separation Failed"))
+                statusText = String(localized: "Processing incomplete")
                 progress = 0
             }
             isSeparating = false
@@ -343,7 +343,7 @@ final class SeparationViewModel: ObservableObject {
         alert = nil
         isTranscribing = true
         UIApplication.shared.isIdleTimerDisabled = true
-        statusText = "正在准备人声转写…"
+        statusText = String(localized: "Preparing vocal transcription…")
 
         processingTask = Task { [weak self] in
             guard let self else { return }
@@ -356,18 +356,18 @@ final class SeparationViewModel: ObservableObject {
                 try Task.checkCancellation()
                 if let id = selectedSongID { try updateSong(id) { $0.transcript = completedTranscript } }
                 transcript = completedTranscript
-                statusText = "分离与转写完成"
+                statusText = String(localized: "Separation and transcription complete")
             } catch is CancellationError {
-                statusText = "分离完成，已取消转写"
+                statusText = String(localized: "Separation complete. Transcription canceled.")
             } catch {
                 transcriptionErrorText = Self.errorMessage(error)
                 present(
                     error: error,
                     title: error is TranscriptionModelManagerError
-                        ? "模型准备失败"
-                        : "转写失败"
+                        ? String(localized: "Model Preparation Failed")
+                        : String(localized: "Transcription Failed")
                 )
-                statusText = "分离完成，转写未完成"
+                statusText = String(localized: "Separation complete. Transcription incomplete.")
             }
             isTranscribing = false
             UIApplication.shared.isIdleTimerDisabled = false
@@ -382,11 +382,11 @@ final class SeparationViewModel: ObservableObject {
     func cancel() {
         processingTask?.cancel()
         if isPreparingTranscriptionModel {
-            statusText = "正在取消转写模型准备…"
+            statusText = String(localized: "Canceling transcription model preparation…")
         } else if isTranscribing {
-            statusText = "正在取消转写；当前推理步骤结束后停止…"
+            statusText = String(localized: "Canceling transcription after the current processing step…")
         } else {
-            statusText = "正在取消；当前推理块结束后停止…"
+            statusText = String(localized: "Canceling after the current audio chunk…")
         }
     }
 
@@ -395,7 +395,7 @@ final class SeparationViewModel: ObservableObject {
         recording.handleBackground()
         guard isProcessing else { return }
         processingTask?.cancel()
-        statusText = "应用已进入后台，正在停止并清理…"
+        statusText = String(localized: "The app is in the background. Stopping and cleaning up…")
     }
 
     func startSinging() {
@@ -410,7 +410,7 @@ final class SeparationViewModel: ObservableObject {
         do {
             try playback.toggle(result.accompanimentURL, vocalsURL: result.vocalsURL, vocalsEnabled: recording.vocalsEnabled)
         } catch {
-            present(error: error, title: "无法播放")
+            present(error: error, title: String(localized: "Unable to Play Audio"))
         }
     }
 
@@ -419,7 +419,7 @@ final class SeparationViewModel: ObservableObject {
         do {
             try playback.toggle(url)
         } catch {
-            present(error: error, title: "无法播放")
+            present(error: error, title: String(localized: "Unable to Play Audio"))
         }
     }
 
@@ -428,20 +428,20 @@ final class SeparationViewModel: ObservableObject {
         do {
             if let id = selectedSongID { try updateSong(id) { $0.lyrics = nil } }
             importedLyrics = nil
-        } catch { present(error: error, title: "无法移除歌词") }
+        } catch { present(error: error, title: String(localized: "Unable to Remove Lyrics")) }
     }
 
     private func apply(_ update: SeparationProgress) {
         progress = min(max(update.fraction, 0), 1)
         switch update.stage {
         case .preparingAudio:
-            statusText = "正在解码并转换为 44.1 kHz…"
+            statusText = String(localized: "Decoding and converting to 44.1 kHz…")
         case .loadingModel:
-            statusText = "正在载入分离模型…"
+            statusText = String(localized: "Loading the separation model…")
         case .separating(let chunk, let total):
-            statusText = "正在分离第 \(chunk) / \(total) 段"
+            statusText = String(localized: "Separating chunk \(chunk) of \(total)")
         case .finalizing:
-            statusText = "正在写入结果…"
+            statusText = String(localized: "Writing results…")
         }
     }
 
@@ -449,17 +449,17 @@ final class SeparationViewModel: ObservableObject {
         transcriptionStage = stage
         switch stage {
         case .checkingModel:
-            statusText = "正在检查本机转写模型…"
+            statusText = String(localized: "Checking the local transcription model…")
         case .downloadingModel(let fraction):
-            statusText = "正在下载转写模型（\(Int(fraction * 100))%）…"
+            statusText = String(localized: "Downloading transcription model (\(Int(fraction * 100))%)…")
         case .verifyingModel:
-            statusText = "正在校验转写模型…"
+            statusText = String(localized: "Verifying the transcription model…")
         case .prewarmingModel:
-            statusText = "正在为本机优化转写模型（首次可能较慢）…"
+            statusText = String(localized: "Optimizing the transcription model for this device (first use may take longer)…")
         case .loadingModel:
-            statusText = "正在载入转写模型…"
+            statusText = String(localized: "Loading the transcription model…")
         case .transcribing:
-            statusText = "正在将分离后的人声转为文本…"
+            statusText = String(localized: "Transcribing the separated vocals…")
         }
     }
 

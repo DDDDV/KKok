@@ -47,21 +47,21 @@ enum TranscriptionModelManagerError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .trustedManifestUnavailable:
-            return "转写模型的可信清单缺失，请更新或重新安装应用。"
+            return String(localized: "The trusted transcription model manifest is missing. Update or reinstall the app.")
         case .invalidTrustedManifest:
-            return "转写模型的可信清单无效，请更新或重新安装应用。"
+            return String(localized: "The trusted transcription model manifest is invalid. Update or reinstall the app.")
         case .unexpectedModelVariant:
-            return "下载的转写模型版本与应用不兼容。"
+            return String(localized: "The downloaded transcription model is incompatible with this app.")
         case .invalidResourcePath:
-            return "转写模型清单包含不安全的文件路径。"
+            return String(localized: "The transcription model manifest contains an unsafe file path.")
         case .missingManifestResource:
-            return "转写模型清单缺少必需文件。"
+            return String(localized: "The transcription model manifest is missing required files.")
         case .resourceDownloadFailed:
-            return "无法从可用线路下载完整的转写模型，请检查网络后重试。"
+            return String(localized: "Unable to download the complete transcription model from the available sources. Check your network and try again.")
         case .resourceSizeMismatch, .resourceHashMismatch:
-            return "下载的转写模型校验失败，已拒绝安装。"
+            return String(localized: "The downloaded transcription model failed verification and was not installed.")
         case .installationFailed:
-            return "转写模型无法安全安装，请检查可用存储空间后重试。"
+            return String(localized: "The transcription model could not be installed safely. Check available storage and try again.")
         }
     }
 }

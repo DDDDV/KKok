@@ -86,12 +86,12 @@ struct PerformanceStore: Sendable {
         } catch {
             // An analysis error must never discard an otherwise playable recording.
             return PitchScorer(reference: PitchReference(duration: duration, frames: []), mode: mode)
-                .report(until: duration, lyrics: pending.lyrics, unavailableReason: "音准分析未完成，录音已保存")
+                .report(until: duration, lyrics: pending.lyrics, unavailableReason: String(localized: "Pitch analysis did not finish. Your recording was saved."))
         }
     }
 
     func finish(_ pending: PendingPerformance) throws -> SingingPerformance {
-        let name = FileNameSanitizer.sanitize(pending.title) + "-我的演唱.wav"
+        let name = FileNameSanitizer.sanitize(pending.title) + "-recording.wav"
         let output = directory(pending.id).appendingPathComponent(name)
         let duration = try PerformanceMixer().mix(
             microphoneURL: microphoneURL(pending.id), accompanimentURL: accompanimentURL(pending.id),
@@ -145,7 +145,7 @@ struct PerformanceStore: Sendable {
         let current = try JSONDecoder().decode(SingingPerformance.self, from: Data(contentsOf: manifest))
         guard current == performance, render.performanceID == performance.id,
               render.sourceFileName == performance.fileName else { throw SingingError.staleEdit }
-        let name = FileNameSanitizer.sanitize(performance.title) + "-我的演唱-\(UUID().uuidString).wav"
+        let name = FileNameSanitizer.sanitize(performance.title) + "-recording-\(UUID().uuidString).wav"
         let updated = SingingPerformance(
             id: performance.id, title: performance.title, createdAt: performance.createdAt,
             duration: render.duration, lyrics: performance.lyrics, fileName: name, mixSettings: render.settings,
