@@ -51,6 +51,7 @@ struct KaraokePlayerView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let compact = geometry.size.height < 700
             ZStack {
                 StudioTheme.stage.ignoresSafeArea()
                 RadialGradient(colors: [Color(red: 0.39, green: 0.17, blue: 0.12).opacity(0.75), .clear],
@@ -59,19 +60,25 @@ struct KaraokePlayerView: View {
                                center: .bottomLeading, startRadius: 0, endRadius: 350).ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 0) {
-                        stageHeader.padding(.bottom, 26)
+                        stageHeader.padding(.bottom, compact ? 6 : 26)
                         VStack(spacing: 9) {
-                            Text(result.sourceName).font(.title2.bold()).multilineTextAlignment(.center).lineLimit(3)
+                            Text(result.sourceName).font(compact ? .title3.bold() : .title2.bold()).multilineTextAlignment(.center).lineLimit(3)
                             HStack(spacing: 6) {
                                 Circle().fill(isRecording ? .red : StudioTheme.cream).frame(width: 5, height: 5)
                                 Text(isRecording ? "正在录制 · 让歌声留在此刻" : "专属舞台 · 跟着音乐，唱给自己")
                                     .font(.caption).foregroundStyle(.white.opacity(0.55))
                             }
                         }
-                        .padding(.bottom, 12)
+                        .padding(.bottom, compact ? 4 : 12)
+                        KaraokePitchView(reference: recording.pitchReference, trace: recording.pitchTrace,
+                                         currentTime: clockTime, isRecording: isRecording,
+                                         isPreparing: recording.state == .preparing,
+                                         report: recording.livePitchReport, unavailableReason: recording.scoringMessage,
+                                         compact: compact)
+                            .padding(.horizontal, -28).padding(.bottom, compact ? 4 : 12)
                         if let lyrics {
                             KaraokeLyricsView(lyrics: lyrics, currentTime: clockTime,
-                                              viewportHeight: max(120, geometry.size.height - 440), immersive: true)
+                                              viewportHeight: compact ? 90 : max(120, geometry.size.height - 620), immersive: true)
                                 .mask {
                                     LinearGradient(stops: [.init(color: .clear, location: 0),
                                                            .init(color: .black, location: 0.15),
@@ -90,11 +97,11 @@ struct KaraokePlayerView: View {
                                 Text("可在歌曲详情中添加同步歌词")
                                     .font(.caption).foregroundStyle(.white.opacity(0.38))
                             }
-                            .frame(maxWidth: .infinity).frame(height: max(120, geometry.size.height - 440))
+                            .frame(maxWidth: .infinity).frame(height: compact ? 90 : max(120, geometry.size.height - 620))
                         }
-                        transport.padding(.top, 10)
+                        transport(compact: compact).padding(.top, compact ? 4 : 10)
                     }
-                    .padding(.horizontal, 28).padding(.top, 16).padding(.bottom, 24)
+                    .padding(.horizontal, 28).padding(.top, compact ? 4 : 16).padding(.bottom, compact ? 12 : 24)
                     .frame(minHeight: geometry.size.height, alignment: .top)
                 }
                 .scrollIndicators(.hidden)
@@ -103,6 +110,7 @@ struct KaraokePlayerView: View {
         .foregroundStyle(.white)
         .task(id: result.accompanimentURL) {
             guard !recording.isBusy else { return }
+            recording.selectPitchSong(result.vocalsURL)
             recording.setVocalsEnabled(false)
             do {
                 try playback.load(result.accompanimentURL, vocalsURL: result.vocalsURL)
@@ -129,8 +137,8 @@ struct KaraokePlayerView: View {
         }
     }
 
-    private var transport: some View {
-        VStack(spacing: 18) {
+    private func transport(compact: Bool) -> some View {
+        VStack(spacing: compact ? 8 : 18) {
             HStack(spacing: 12) {
                 Toggle(isOn: Binding(get: { recording.vocalsEnabled }, set: { enabled in
                     recording.setVocalsEnabled(enabled)
@@ -167,7 +175,7 @@ struct KaraokePlayerView: View {
                 }.font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
             }
             if recording.state == .preparing || recording.state == .mixing {
-                ProgressView(recording.state == .mixing ? "正在保存演唱…" : "正在准备麦克风…")
+                ProgressView(recording.state == .mixing ? "正在评分并保存演唱…" : recording.preparationMessage)
                     .tint(.white).frame(height: 86)
             } else {
                 HStack(alignment: .center, spacing: 36) {
@@ -181,9 +189,9 @@ struct KaraokePlayerView: View {
                         if isRecording { recording.finish() } else { startSinging() }
                     } label: {
                         ZStack {
-                            Circle().stroke(.white.opacity(0.22), lineWidth: 1).frame(width: 90, height: 90)
+                            Circle().stroke(.white.opacity(0.22), lineWidth: 1).frame(width: compact ? 70 : 90, height: compact ? 70 : 90)
                             Circle().fill(isRecording ? Color(red: 0.82, green: 0.28, blue: 0.24) : StudioTheme.cream)
-                                .frame(width: 76, height: 76)
+                                .frame(width: compact ? 60 : 76, height: compact ? 60 : 76)
                             Image(systemName: isRecording ? "stop.fill" : "mic.fill")
                                 .font(.system(size: 28, weight: .medium))
                                 .foregroundStyle(isRecording ? .white : StudioTheme.stage)
@@ -200,11 +208,16 @@ struct KaraokePlayerView: View {
                     }.accessibilityLabel(playback.isPlaying ? "暂停试听" : "试听伴奏").disabled(recording.isBusy)
                 }
                 .buttonStyle(.plain)
-                Text(isRecording ? "点击结束 · 伴奏结束后自动保存" : "点击开始演唱 · 从头录制你的声音")
-                    .font(.caption).foregroundStyle(.white.opacity(0.6))
+                if !compact {
+                    Text(isRecording ? "点击结束 · 伴奏结束后自动保存" : "点击开始演唱 · 从头录制你的声音")
+                        .font(.caption).foregroundStyle(.white.opacity(0.6))
+                }
             }
             Text("建议使用有线耳机，避免外放串音与蓝牙延迟")
                 .font(.system(size: 10)).foregroundStyle(.white.opacity(0.3))
+            if let message = recording.scoringMessage, isRecording {
+                Text(message).font(.caption).foregroundStyle(.white.opacity(0.55))
+            }
             if let error = selectionError ?? recording.errorText ?? playback.errorText {
                 Text(error).font(.caption).foregroundStyle(.orange)
             }

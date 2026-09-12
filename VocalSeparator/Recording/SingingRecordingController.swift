@@ -15,6 +15,11 @@ final class SingingRecordingController: ObservableObject {
     @Published private(set) var performances: [SingingPerformance] = []
     @Published private(set) var completedPerformance: SingingPerformance?
     @Published private(set) var vocalsEnabled = false
+    @Published private(set) var pitchReference: PitchReference?
+    @Published private(set) var pitchTrace: [PitchFrame] = []
+    @Published private(set) var livePitchReport: PitchScoreReport?
+    @Published private(set) var scoringMessage: String?
+    @Published private(set) var preparationMessage = "正在准备麦克风…"
 
     let store: PerformanceStore
     var isBusy: Bool { state != .idle }
@@ -27,6 +32,11 @@ final class SingingRecordingController: ObservableObject {
     private var startID: UUID?
     private var mixTask: Task<SingingPerformance, Error>?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private var scorer: PitchScorer?
+    private var referenceSource: URL?
+    private var lastScoreTime: Double = -1
+    private let analyzeReference: @Sendable (URL) throws -> PitchReference
+    private var preparationTask: Task<(PendingPerformance, PitchReference?, String?), Error>?
 
     init(
         store: PerformanceStore = PerformanceStore(),
@@ -34,6 +44,7 @@ final class SingingRecordingController: ObservableObject {
         requestPermission: @escaping () async -> Bool = {
             await AVAudioApplication.requestRecordPermission()
         },
+        analyzeReference: @escaping @Sendable (URL) throws -> PitchReference = { try PitchFileAnalyzer.reference($0) },
         render: @escaping @Sendable (PerformanceStore, PendingPerformance) throws -> SingingPerformance = { store, pending in
             try store.finish(pending)
         }
@@ -42,6 +53,7 @@ final class SingingRecordingController: ObservableObject {
         self.capture = capture ?? KaraokeCapture()
         self.requestPermission = requestPermission
         self.render = render
+        self.analyzeReference = analyzeReference
         do {
             performances = try store.performances()
             pending = try store.recoverPending()
@@ -88,6 +100,15 @@ final class SingingRecordingController: ObservableObject {
         errorText = nil
         notice = nil
         permissionDenied = false
+        pitchReference = nil
+        pitchTrace = []
+        livePitchReport = nil
+        scoringMessage = nil
+        scorer = nil
+        referenceSource = result.vocalsURL
+        lastScoreTime = -1
+        completedPerformance = nil
+        preparationMessage = "正在准备麦克风…"
         currentTime = 0
         duration = result.duration
         let id = UUID()
@@ -103,21 +124,39 @@ final class SingingRecordingController: ObservableObject {
         }
         do {
             let store = store
-            let draft = try await Task.detached(priority: .userInitiated) {
-                try store.prepare(
+            let analyzeReference = analyzeReference
+            preparationMessage = "正在分析参考旋律，首次演唱需要稍候…"
+            let task = Task.detached(priority: .userInitiated) { () throws -> (PendingPerformance, PitchReference?, String?) in
+                var reference: PitchReference?
+                var reason: String?
+                do { reference = try analyzeReference(result.vocalsURL) }
+                catch is CancellationError { throw CancellationError() }
+                catch { reason = "参考旋律分析失败，本次仅保存录音" }
+                try Task.checkCancellation()
+                let draft = try store.prepare(
                     title: (result.sourceName as NSString).deletingPathExtension,
-                    lyrics: lyrics, accompanimentURL: result.accompanimentURL
+                    lyrics: lyrics, accompanimentURL: result.accompanimentURL,
+                    scoring: PitchScoringContext(reference: reference, unavailableReason: "录音尚未就绪，暂未评分")
                 )
-            }.value
+                return (draft, reference, reason)
+            }
+            preparationTask = task
+            let (draft, reference, reason) = try await task.value
             guard startID == id, state == .preparing else {
                 try? store.remove(draft.id)
                 return
             }
+            preparationTask = nil
             pending = draft
+            pitchReference = reference.map { PitchReference(duration: $0.duration, frames: $0.scorableFrames) }
+            scorer = reference.map { PitchScorer(reference: $0) }
+            preparationMessage = "正在准备麦克风…"
             try capture.start(
                 accompanimentURL: store.accompanimentURL(draft.id), vocalsURL: result.vocalsURL,
                 vocalsEnabled: vocalsEnabled, microphoneURL: store.microphoneURL(draft.id)
             )
+            scoringMessage = reason ?? capture.scoringUnavailableReason
+            try store.saveScoringContext(PitchScoringContext(reference: reference, unavailableReason: scoringMessage), for: draft.id)
             state = .recording
             startID = nil
             duration = capture.duration
@@ -129,6 +168,7 @@ final class SingingRecordingController: ObservableObject {
             RunLoop.main.add(clock, forMode: .common)
         } catch {
             guard startID == id else { return }
+            preparationTask = nil
             capture.stop()
             if let pending { try? store.remove(pending.id) }
             pending = nil
@@ -144,13 +184,27 @@ final class SingingRecordingController: ObservableObject {
         if state == .recording { capture.setVocalsEnabled(enabled) }
     }
 
+    func selectPitchSong(_ vocalsURL: URL) {
+        guard !isBusy, referenceSource != vocalsURL else { return }
+        referenceSource = vocalsURL
+        pitchReference = nil
+        pitchTrace = []
+        livePitchReport = nil
+        scoringMessage = nil
+    }
+
     func finish(notice: String? = nil) {
         guard state == .recording else { return }
-        refresh()
         state = .mixing // Ignore duplicate completion, route and user-stop events.
+        currentTime = min(max(capture.currentTime, 0), duration)
         timer?.invalidate()
         timer = nil
         capture.stop() // Finalize the microphone WAV header before reading it.
+        updatePitch()
+        if let failure = capture.captureFailure, let pending {
+            scoringMessage = failure
+            try? store.saveScoringContext(PitchScoringContext(reference: pitchReference, unavailableReason: failure), for: pending.id)
+        }
         level = 0
         self.notice = notice
         UIApplication.shared.isIdleTimerDisabled = false
@@ -203,6 +257,8 @@ final class SingingRecordingController: ObservableObject {
 
     private func handleInterruption(_ message: String) {
         if state == .preparing {
+            preparationTask?.cancel()
+            preparationTask = nil
             startID = nil
             state = .idle
             notice = "演唱准备已取消，返回后可重新开始。"
@@ -246,6 +302,22 @@ final class SingingRecordingController: ObservableObject {
         guard state == .recording else { return }
         currentTime = min(max(capture.currentTime, 0), duration)
         level = capture.level
+        updatePitch()
+        if let failure = capture.captureFailure { finish(notice: failure) }
+    }
+
+    private func updatePitch() {
+        let frames = capture.drainPitchFrames()
+        guard !frames.isEmpty else { return }
+        scorer?.append(frames)
+        pitchTrace += frames
+        if pitchTrace.count > 600 { pitchTrace.removeFirst(pitchTrace.count - 600) }
+        // Wait for the analysis window, so pending microphone samples are not counted as misses.
+        let analyzedTime = min(currentTime, frames.last?.time ?? 0)
+        if analyzedTime - lastScoreTime >= 0.2 || state == .mixing {
+            lastScoreTime = analyzedTime
+            livePitchReport = scorer?.report(until: analyzedTime, lyrics: nil, unavailableReason: scoringMessage)
+        }
     }
 
     private func endBackgroundTask() {

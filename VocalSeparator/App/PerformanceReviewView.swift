@@ -29,6 +29,13 @@ struct PerformanceReviewView: View {
                         }
                         Spacer(minLength: 0)
                     }
+                    if let report = editor.performance.pitchScore {
+                        PitchScoreCard(report: report) { time in
+                            guard !editor.isBusy else { return }
+                            playback.seek(to: time)
+                            if !playback.isPlaying { Task { await editor.audition() } }
+                        }
+                    }
                     playbackControls
                     if editor.canEdit { adjustmentControls }
                     else {

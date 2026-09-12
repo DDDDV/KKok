@@ -6,6 +6,63 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testRenderPitchTrackAndScoreCardOnCompactAndLargeTextScreens() async throws {
+        let frames = stride(from: 0.032, to: 8.0, by: 0.02).map { time in
+            PitchFrame(time: time, midi: [60.0, 64, 62, 67][min(3, Int(time / 2))], confidence: 1)
+        }
+        let reference = PitchReference(duration: 8, frames: frames)
+        let trace = frames.filter { $0.time < 3 }.map { PitchFrame(time: $0.time, midi: ($0.midi ?? 60) + 0.15 * sin($0.time * 20), confidence: 1) }
+        var scorer = PitchScorer(reference: reference)
+        scorer.append(trace)
+        let report = scorer.report(until: 3, lyrics: try LRCParser.parse("[00:00]跟着音乐轻轻唱\n[00:02]每一句都属于自己"))
+        let stage = VStack(spacing: 32) {
+            Text("当你老了").font(.title.bold()).padding(.top, 32)
+            KaraokePitchView(reference: reference, trace: trace, currentTime: 3, isRecording: true,
+                             isPreparing: false, report: report, unavailableReason: nil)
+            Text("睡意昏沉").font(.largeTitle.bold())
+            Text("当你老了走不动了").font(.title2).foregroundStyle(.secondary)
+            Spacer()
+        }.frame(maxWidth: .infinity).background(StudioTheme.stage).foregroundStyle(.white).preferredColorScheme(.dark)
+        try await attach(stage, name: "Pitch-live-track-393x852")
+        try await attach(stage, name: "Pitch-live-track-compact", size: CGSize(width: 375, height: 667))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = PerformanceStore(root: root)
+        let capture = PitchFixtureCapture(frames: trace)
+        capture.currentTime = 3
+        capture.duration = 8
+        let recording = SingingRecordingController(store: store, capture: capture, requestPermission: { true },
+                                                    analyzeReference: { _ in reference })
+        let playback = AudioPlaybackController()
+        let source = try AudioTestFixtures.url()
+        let result = SeparationResult(sourceName: "当你老了", vocalsURL: source, accompanimentURL: source, duration: 8)
+        let lyrics = try LRCParser.parse("[00:00]睡意昏沉\n[00:04]当你老了走不动了\n[00:06]炉火旁打盹回忆青春")
+        await recording.start(result: result, lyrics: lyrics, playback: playback)
+        let fullStage = KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording,
+                                          startSinging: {}, togglePlayback: {}, close: {}).preferredColorScheme(.dark)
+        try await attach(fullStage, name: "Pitch-production-stage")
+        try await attach(fullStage, name: "Pitch-production-stage-compact", size: CGSize(width: 375, height: 667))
+        recording.finish()
+        for _ in 0..<300 {
+            if recording.state != .mixing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        if let performance = recording.completedPerformance {
+            try await attach(PerformanceReviewView(performance: performance, store: store, playback: playback),
+                             name: "Pitch-production-review")
+        } else { XCTFail("Expected a saved take") }
+        playback.stop()
+        try? FileManager.default.removeItem(at: root)
+        let card = ScrollView { PitchScoreCard(report: report, replayPhrase: { _ in }).padding(20) }
+            .background(StudioTheme.stage).preferredColorScheme(.dark)
+        try await attach(card, name: "Pitch-score-card")
+        try await attach(card.environment(\.dynamicTypeSize, .accessibility2), name: "Pitch-score-card-large-text",
+                         size: CGSize(width: 375, height: 667))
+        let unavailable = scorer.report(until: 3, lyrics: nil, unavailableReason: "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。")
+        try await attach(ScrollView { PitchScoreCard(report: unavailable).padding(20) }.background(StudioTheme.stage).preferredColorScheme(.dark),
+                         name: "Pitch-score-unavailable")
+    }
+
+    @MainActor
     func testRenderExportSettingsAndOpenSourceLicense() async throws {
         let suite = "SettingsRendering-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

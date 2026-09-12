@@ -1,5 +1,46 @@
 # 验证记录
 
+## 2026-09-12 · 歌词页实时音准轨道与演唱评分
+
+歌词上方加入原唱参考音符、麦克风音高轨迹、命中光点、偏高／偏低提示与实时分数；
+结束后从原始录音分析并保存总分、命中率、演唱覆盖率和逐句成绩，支持逐句回听。
+麦克风采集改为 AVAudioEngine 输入 tap，与伴奏／原唱共享 hostTime 时间基准；
+有界工作队列负责 PCM 写入、重采样和 YIN。参考旋律本地缓存，没有新增模型下载或网络调用。
+
+已执行：
+
+- iPhone 17 Pro / iOS 26.5 Simulator：完整回归 **184/184 通过，0 失败、0 跳过**，
+  已核对 xcresult 的 `totalTestCount`、`passedTests`、`failedTests`、`skippedTests`。
+  结果：`/private/tmp/vocal-pitch-verified.xcresult`，日志：`/private/tmp/vocal-pitch-verified.log`。
+  命令排除仅用于真实 iPhone 模型链路验收的 `RealPipelineIntegrationTests` 与
+  `RealKaraokePipelineTests`；这两组不计入上述 184 项。
+- 其中 21 项音准专项测试覆盖：55～880 Hz、较强二次谐波、静音／直流／噪声／无效采样、
+  准确／偏半音／偏八度、低可信参考、漏唱、间奏、提前停止、逐句评分和重复帧。
+  实际运行 48 kHz PCM 重采样、音频尾部刷新、缓存失效／损坏恢复、录音前后裁切、
+  输入缓冲区复制、WAV 关闭读取、短缺口补静音及异常缺口拒绝。
+- 使用生产 `SingingGuideGraph` 和系统 AVAudioEngine 离线渲染验证两条引导音轨的共同时钟、
+  不同采样率下的起音对齐，以及连续开关原唱后的 PCM 振幅；等待系统防爆音音量渐变结束后
+  保留严格振幅断言。实际输入队列不连接到播放混音图。
+- 作品落盘测试覆盖重启恢复、改名、再次添加音效后分数保留；外放或评分上下文损坏时
+  仍保存可播放录音且不生成虚假分数。原有权限、后台／中断、原唱开关、混音、播放、
+  非破坏编辑、导出、歌词及歌曲库测试包含在完整回归中。
+- 小屏布局调整后，界面专项再次 **7/7 通过，0 失败**，与 184 项中的界面测试重叠，
+  不相加计数。结果：`/private/tmp/vocal-pitch-layout-final.xcresult`。
+  已检查 393×852 和 375×667 pt 的生产歌词页、生产评分回放页及辅助大字号评分卡；
+  375×667 pt 默认字号下结束录音按钮无需滚动即可看见。
+  最终图片：`/private/tmp/singing-pitch-stage.png`、`/private/tmp/singing-pitch-compact.png`、
+  `/private/tmp/singing-pitch-review.png`。轨迹与分数截图使用合成测试输入，不是实际真人演唱。
+- 最终 `generic/platform=iOS` Release **BUILD SUCCEEDED**，使用 `CODE_SIGNING_ALLOWED=NO`；
+  日志：`/private/tmp/vocal-pitch-device-final.log`。这是未签名的本地 iPhone 构建，
+  不代表真机运行或 App Store Distribution 验证。`git diff --check` 通过。
+
+边界：本轮没有采集真人麦克风，没有在真实 iPhone／蓝牙耳机上测量延迟。使用系统报告的
+输入／输出延迟进行初步对齐，不等于实际设备校准。评分要求耳机输出，外放仍能录音但不评分。
+参考来自自动分析的分离人声，复杂和声、混响、分离残留和弱声仍可能误识别；周期性可信度
+不能保证选中主唱。该功能是原调音准练习分，不评价音色、歌词正确性或情感。
+
+代码与文档保持未暂存、未提交。
+
 ## 2026-09-12 · 导出格式设置、MP3／AAC／ALAC 与 WAV
 
 右上角信息按钮改为设置；导出格式跨重启保存，默认 WAV。歌曲详情、伴奏／歌曲菜单、

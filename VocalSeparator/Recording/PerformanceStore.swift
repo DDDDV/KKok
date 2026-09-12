@@ -9,6 +9,7 @@ struct SingingPerformance: Codable, Identifiable, Equatable, Sendable {
     let fileName: String
     // Optional so manifests written before editing was supported still decode.
     var mixSettings: PerformanceMixSettings? = nil
+    var pitchScore: PitchScoreReport? = nil
     var settings: PerformanceMixSettings { mixSettings ?? PerformanceMixSettings() }
 }
 
@@ -42,17 +43,41 @@ struct PerformanceStore: Sendable {
         directory(performance.id).appendingPathComponent(performance.fileName)
     }
 
-    func prepare(title: String, lyrics: TimedLyrics?, accompanimentURL: URL) throws -> PendingPerformance {
+    func prepare(title: String, lyrics: TimedLyrics?, accompanimentURL: URL,
+                 scoring: PitchScoringContext? = nil) throws -> PendingPerformance {
         let pending = PendingPerformance(id: UUID(), title: title, createdAt: Date(), lyrics: lyrics)
         let folder = directory(pending.id)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try FileManager.default.copyItem(at: accompanimentURL, to: self.accompanimentURL(pending.id))
+            if let scoring { try saveScoringContext(scoring, for: pending.id) }
             try JSONEncoder().encode(pending).write(to: folder.appendingPathComponent("draft.json"), options: .atomic)
             return pending
         } catch {
             try? FileManager.default.removeItem(at: folder)
             throw error
+        }
+    }
+
+    func saveScoringContext(_ context: PitchScoringContext, for id: UUID) throws {
+        try JSONEncoder().encode(context).write(to: directory(id).appendingPathComponent("pitch-context.json"), options: .atomic)
+    }
+
+    private func score(_ pending: PendingPerformance, duration: Double) -> PitchScoreReport? {
+        let url = directory(pending.id).appendingPathComponent("pitch-context.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil } // Legacy take.
+        do {
+            let context = try JSONDecoder().decode(PitchScoringContext.self, from: Data(contentsOf: url))
+            let reference = context.reference ?? PitchReference(duration: duration, frames: [])
+            var scorer = PitchScorer(reference: reference)
+            if context.unavailableReason == nil, context.reference != nil {
+                scorer.append(try PitchFileAnalyzer.analyze(microphoneURL(pending.id)).frames)
+            }
+            return scorer.report(until: duration, lyrics: pending.lyrics, unavailableReason: context.unavailableReason)
+        } catch {
+            // An analysis error must never discard an otherwise playable recording.
+            return PitchScorer(reference: PitchReference(duration: duration, frames: []))
+                .report(until: duration, lyrics: pending.lyrics, unavailableReason: "音准分析未完成，录音已保存")
         }
     }
 
@@ -65,7 +90,7 @@ struct PerformanceStore: Sendable {
         )
         let performance = SingingPerformance(
             id: pending.id, title: pending.title, createdAt: pending.createdAt,
-            duration: duration, lyrics: pending.lyrics, fileName: name
+            duration: duration, lyrics: pending.lyrics, fileName: name, pitchScore: score(pending, duration: duration)
         )
         try JSONEncoder().encode(performance).write(
             to: directory(pending.id).appendingPathComponent("performance.json"), options: .atomic
@@ -114,7 +139,8 @@ struct PerformanceStore: Sendable {
         let name = FileNameSanitizer.sanitize(performance.title) + "-我的演唱-\(UUID().uuidString).wav"
         let updated = SingingPerformance(
             id: performance.id, title: performance.title, createdAt: performance.createdAt,
-            duration: render.duration, lyrics: performance.lyrics, fileName: name, mixSettings: render.settings
+            duration: render.duration, lyrics: performance.lyrics, fileName: name, mixSettings: render.settings,
+            pitchScore: performance.pitchScore
         )
         let output = mixURL(updated)
         var committed = false
