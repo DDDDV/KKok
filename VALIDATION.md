@@ -1,5 +1,42 @@
 # 验证记录
 
+## 2026-09-12 · 导出格式设置、MP3／AAC／ALAC 与 WAV
+
+右上角信息按钮改为设置；导出格式跨重启保存，默认 WAV。歌曲详情、伴奏／歌曲菜单、
+演唱菜单、已保存演唱和原始录音统一进入后台导出。保存素材与编辑链路继续使用内部 WAV。
+MP3 接入官方 LAME 4.0 的独立动态编码库；AAC／ALAC 使用 Apple 原生编码。
+
+已执行：
+
+- iPhone 17 Pro / iOS 26.5 Simulator，最终 **48/48 通过，0 失败、0 跳过**。
+  结果：`/private/tmp/vocal-export-verified.xcresult`。17 项导出测试、6 项界面渲染、
+  13 项演唱编辑及 12 项录音状态测试。中间轮次与此重叠，不累加。
+- 实际写出并完整解码 WAV、MP3、AAC、ALAC，检查编码类型、采样率、声道、音频尾部、
+  RMS／声道频率、MP3 帧头与 Info 标签、ALAC 配置中的 16／24 位位深。
+  16 位 ALAC 逐采样精确一致；Float32 → ALAC 量化误差不超过 1.5 个 24 位量化单位。
+  PCM WAV 字节不变；压缩 WAV 原曲会正确转为 PCM WAV。
+- 测试覆盖 16／44.1／48 kHz、单／双声道、NaN 拒绝、ALAC 超范围峰值拒绝、损坏文件
+  与失败重试、取消后清理、同名并发导出隔离、长 Unicode 文件名和设置持久化／非法值回退。
+- 已查看设置页正常字号、375×667 pt 大字号滚动布局、许可页和原有演唱页面的渲染截图。
+  截图：`/private/tmp/vocal-export-screenshots/`（对应上一轮同界面代码的 47/47 测试）。
+- 模拟器实际操作：右上角设置 → MP3 → 重启保留选择 → 歌曲菜单“导出伴奏” →
+  系统分享 → 保存到本机“文件”。`afinfo` 确認保存文件为 MPEG Layer III、44.1 kHz、
+  双声道、256 kbps，132300 个有效帧（3 秒合成音频），临时导出目录已清理。
+- `Integration/build-framework.py` 分别独立构建 iPhone arm64 和 Simulator arm64 框架。
+  通过替换脚本生成并验证重新签名的模拟器 App，安装、启动后仍可从歌曲菜单导出人声 MP3。
+  `otool -L` 确认 App 引用 `@rpath/LAME.framework/LAME`；库仅依赖 libSystem，
+  `nm` 检查未链接 hip／MPG123／lame_decode 解码入口。上游 316 个文件与官方 tarball
+  逐字节一致；构建前源码包一致性检查和 Python 脚本解析通过。
+- 最终 `generic/platform=iOS` Release **BUILD SUCCEEDED**（`CODE_SIGNING_ALLOWED=NO`），
+  日志：`/private/tmp/vocal-export-release-final.log`。已生成对应的本地替换材料：
+  `/private/tmp/vocal-export-release-kit-final/`，包含文件 SHA-256 清单；未上传或公开发布。
+- `git diff --check` 通过，改动保持未暂存、未提交。
+
+范围：使用合成测试音频，没有真人录音或实机分享／长歌曲耗时验收。上述 iPhone 构建未签名，
+不等于 Distribution／App Store 验证。完整源码包、LGPL 权利说明及动态库替换流程已实现；
+公开分发前还须向对应版本的接收者提供未加密替换材料，并核对实际分发条款，详见
+[MP3 许可说明](docs/mp3-licensing.md)。不能把本地工程检查称为最终法律合规认证。
+
 ## 2026-09-04 · 演唱后音量、空间音效与再次调整
 
 回放页加入 0%～200% 人声音量、原声/浴室/楼道/音乐厅、试听调整、保存与退出时的未保存提示。

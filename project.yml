@@ -21,6 +21,10 @@ targets:
   VocalSeparator:
     type: application
     platform: iOS
+    preBuildScripts:
+      - name: Verify bundled LAME corresponding source
+        script: /usr/bin/python3 "$SRCROOT/Scripts/package-lame-source.py" --check
+        basedOnDependencyAnalysis: false
     sources:
       - path: VocalSeparator
         excludes:
@@ -58,11 +62,51 @@ targets:
         TRANSCRIPTION_MODEL_MIRROR_BASE_URLS: ""
         SUPPORTS_MACCATALYST: false
     dependencies:
+      - target: LAME
+        embed: true
       - package: ArgmaxOSS
         product: WhisperKit
     scheme:
       testTargets:
         - VocalSeparatorTests
+
+  # Keep the LGPL encoder replaceable as a separate dynamic library.
+  LAME:
+    type: framework
+    platform: iOS
+    sources:
+      - path: ThirdParty/LAME/lame-4.0/libmp3lame
+        excludes:
+          - i386
+          - vector
+          - mpglib_interface.c
+          - "*.rc"
+          - "*.ico"
+          - "*.in"
+          - "Makefile*"
+        headerVisibility: project
+      - path: ThirdParty/LAME/lame-4.0/include/lame.h
+        headerVisibility: public
+      - path: ThirdParty/LAME/Integration/config.h
+        headerVisibility: project
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.VocalSeparator.LAME
+        PRODUCT_NAME: LAME
+        MACH_O_TYPE: mh_dylib
+        DEFINES_MODULE: true
+        MODULEMAP_FILE: "$(SRCROOT)/ThirdParty/LAME/Integration/module.modulemap"
+        GENERATE_INFOPLIST_FILE: true
+        SKIP_INSTALL: true
+        DEVELOPMENT_TEAM: 947X8JA62C
+        DYLIB_CURRENT_VERSION: "4.0"
+        DYLIB_COMPATIBILITY_VERSION: "4.0"
+        GCC_PREPROCESSOR_DEFINITIONS: ["$(inherited)", "HAVE_CONFIG_H=1"]
+        HEADER_SEARCH_PATHS:
+          - "$(SRCROOT)/ThirdParty/LAME/Integration"
+          - "$(SRCROOT)/ThirdParty/LAME/lame-4.0/include"
+          - "$(SRCROOT)/ThirdParty/LAME/lame-4.0"
+        CLANG_WARN_DOCUMENTATION_COMMENTS: false
 
   VocalSeparatorTests:
     type: bundle.unit-test

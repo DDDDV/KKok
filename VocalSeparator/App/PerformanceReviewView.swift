@@ -5,6 +5,7 @@ struct PerformanceReviewView: View {
     @ObservedObject var playback: AudioPlaybackController
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingExit = false
+    @State private var exportRequest: AudioExportRequest?
 
     init(performance: SingingPerformance, store: PerformanceStore, playback: AudioPlaybackController,
          onSave: @escaping (SingingPerformance) -> Void = { _ in }) {
@@ -49,7 +50,10 @@ struct PerformanceReviewView: View {
                         .buttonStyle(PrimaryActionButtonStyle())
                         .disabled(!editor.hasChanges || editor.isBusy)
                     }
-                    ShareLink(item: editor.savedURL) {
+                    Button {
+                        exportRequest = AudioExportRequest(sourceURL: editor.savedURL,
+                                                           title: editor.performance.title + "-我的演唱")
+                    } label: {
                         Label("导出已保存演唱（含伴奏）", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }.buttonStyle(SecondaryActionButtonStyle())
@@ -58,7 +62,10 @@ struct PerformanceReviewView: View {
                         Text("满意后点击“保存调整”，即可导出这次效果。")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    ShareLink(item: editor.store.microphoneURL(editor.performance.id)) {
+                    Button {
+                        exportRequest = AudioExportRequest(sourceURL: editor.store.microphoneURL(editor.performance.id),
+                                                           title: editor.performance.title + "-原始录音")
+                    } label: {
                         Label("仅导出原始录音", systemImage: "mic")
                     }.font(.subheadline).disabled(editor.isBusy)
                     if let lyrics = editor.performance.lyrics {
@@ -84,6 +91,7 @@ struct PerformanceReviewView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(item: $exportRequest) { AudioExportSheet(request: $0) }
         .interactiveDismissDisabled(editor.hasChanges || editor.isBusy)
         .confirmationDialog("保存这次调整？", isPresented: $confirmingExit, titleVisibility: .visible) {
             Button("保存并完成") {

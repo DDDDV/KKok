@@ -17,7 +17,8 @@ struct ContentView: View {
     @State private var favoriteSongsOnly = false
     @State private var favoriteAccompanimentsOnly = false
     @State private var lyricsReadyOnly = false
-    @State private var isShowingLegal = false
+    @State private var isShowingSettings = false
+    @State private var exportRequest: AudioExportRequest?
     @State private var isShowingSong = false
     @State private var isShowingStage = false
     @State private var opensStageAfterDetail = false
@@ -52,7 +53,8 @@ struct ContentView: View {
         .alert(item: Binding(get: { isShowingSong ? nil : viewModel.alert }, set: { viewModel.alert = $0 })) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("好")))
         }
-        .sheet(isPresented: $isShowingLegal) { LegalView() }
+        .sheet(isPresented: $isShowingSettings) { SettingsView() }
+        .sheet(item: $exportRequest) { AudioExportSheet(request: $0) }
         .sheet(isPresented: $isShowingSong, onDismiss: {
             if opensStageAfterDetail {
                 opensStageAfterDetail = false
@@ -167,12 +169,12 @@ struct ContentView: View {
                     .accessibilityAddTraits(.isHeader)
             }
             Spacer(minLength: 12)
-            Button { isShowingLegal = true } label: {
-                Image(systemName: "info").font(.system(size: 18, weight: .semibold))
+            Button { isShowingSettings = true } label: {
+                Image(systemName: "gearshape").font(.system(size: 20, weight: .semibold))
                     .frame(width: 44, height: 44).background(.white.opacity(0.9), in: Circle())
                     .overlay { Circle().stroke(StudioTheme.border.opacity(0.5), lineWidth: 1) }
             }
-            .accessibilityLabel("关于与许可")
+            .accessibilityLabel("设置").accessibilityIdentifier("library.settings")
         }
     }
 
@@ -340,8 +342,12 @@ struct ContentView: View {
                 }
                 Button("重命名", systemImage: "pencil") { editedTitle = song.title; renamingSong = song }
                 if let result = viewModel.library.result(for: song) {
-                    ShareLink(item: result.accompanimentURL) { Label("导出伴奏", systemImage: "square.and.arrow.up") }
-                    ShareLink(item: result.vocalsURL) { Label("导出人声", systemImage: "person.wave.2") }
+                    Button("导出伴奏", systemImage: "square.and.arrow.up") {
+                        exportRequest = AudioExportRequest(sourceURL: result.accompanimentURL, title: song.title + "-伴奏")
+                    }
+                    Button("导出人声", systemImage: "person.wave.2") {
+                        exportRequest = AudioExportRequest(sourceURL: result.vocalsURL, title: song.title + "-人声")
+                    }
                 }
                 Button(separated ? "删除分离结果" : "删除歌曲", systemImage: "trash", role: .destructive) {
                     deletesSeparationOnly = separated
@@ -375,8 +381,9 @@ struct ContentView: View {
             Menu {
                 Button("回放与调整", systemImage: "slider.horizontal.3") { reviewingPerformance = performance }
                 Button("重命名作品", systemImage: "pencil") { editedTitle = performance.title; renamingPerformance = performance }
-                ShareLink(item: viewModel.recording.store.mixURL(performance)) {
-                    Label("导出演唱", systemImage: "square.and.arrow.up")
+                Button("导出演唱", systemImage: "square.and.arrow.up") {
+                    exportRequest = AudioExportRequest(sourceURL: viewModel.recording.store.mixURL(performance),
+                                                       title: performance.title + "-我的演唱")
                 }
                 Button("删除演唱", systemImage: "trash", role: .destructive) { deletingPerformance = performance }
             } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(.secondary) }

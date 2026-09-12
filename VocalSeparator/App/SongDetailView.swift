@@ -7,6 +7,7 @@ struct SongDetailView: View {
     @State private var isImportingLyrics = false
     @State private var isConfirmingTranscription = false
     @State private var isShowingTranscript = false
+    @State private var exportRequest: AudioExportRequest?
 
     var body: some View {
         NavigationStack {
@@ -28,16 +29,19 @@ struct SongDetailView: View {
                         VStack(spacing: 0) {
                             StemPreviewRow(title: "伴奏", subtitle: "把主角的位置留给你", icon: "waveform",
                                            url: result.accompanimentURL, playback: viewModel.playback,
-                                           toggle: { viewModel.togglePlayback(result.accompanimentURL) })
+                                           toggle: { viewModel.togglePlayback(result.accompanimentURL) },
+                                           export: { exportAudio(result.accompanimentURL, suffix: "伴奏") })
                             Divider().padding(.leading, 58)
                             StemPreviewRow(title: "人声", subtitle: "听清原唱的每个细节", icon: "person.wave.2",
                                            url: result.vocalsURL, playback: viewModel.playback,
-                                           toggle: { viewModel.togglePlayback(result.vocalsURL) })
+                                           toggle: { viewModel.togglePlayback(result.vocalsURL) },
+                                           export: { exportAudio(result.vocalsURL, suffix: "人声") })
                         }.padding(16).studioCard().disabled(!viewModel.canManageLibrary)
                     } else if let audio = viewModel.selectedAudio {
                         StemPreviewRow(title: "试听原曲", subtitle: "分离前，先听一听", icon: "music.note",
                                        url: audio.url, playback: viewModel.playback,
-                                       toggle: { viewModel.togglePlayback(audio.url) })
+                                       toggle: { viewModel.togglePlayback(audio.url) },
+                                       export: { exportAudio(audio.url, suffix: "原曲") })
                             .padding(16).studioCard().disabled(!viewModel.canManageLibrary)
                     }
                     lyricsCard
@@ -83,6 +87,7 @@ struct SongDetailView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
         }
         .tint(StudioTheme.accent)
+        .sheet(item: $exportRequest) { AudioExportSheet(request: $0) }
         .fileImporter(isPresented: $isImportingLyrics, allowedContentTypes: [.item], allowsMultipleSelection: false) {
             viewModel.handleFilesImport($0)
         }
@@ -95,6 +100,10 @@ struct SongDetailView: View {
         } message: {
             Text("首次使用需下载约 602 MiB 的转写模型，建议连接 Wi-Fi 并保持应用在前台。只有模型下载会联网，音频与识别过程始终留在本机。转写文本不包含同步歌词时间轴。")
         }
+    }
+
+    private func exportAudio(_ url: URL, suffix: String) {
+        exportRequest = AudioExportRequest(sourceURL: url, title: (viewModel.selectedSong?.title ?? "歌曲") + "-" + suffix)
     }
 
     private var lyricsCard: some View {
@@ -141,6 +150,7 @@ private struct StemPreviewRow: View {
     let url: URL
     @ObservedObject var playback: AudioPlaybackController
     let toggle: () -> Void
+    let export: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -154,7 +164,7 @@ private struct StemPreviewRow: View {
                 Image(systemName: playback.playingURL == url ? "pause.fill" : "play.fill")
                     .frame(width: 44, height: 44)
             }.accessibilityLabel(playback.playingURL == url ? "暂停\(title)" : "播放\(title)")
-            ShareLink(item: url) { Image(systemName: "square.and.arrow.up").frame(width: 40, height: 44) }
+            Button(action: export) { Image(systemName: "square.and.arrow.up").frame(width: 40, height: 44) }
                 .accessibilityLabel("导出\(title)")
         }.padding(.vertical, 8)
     }

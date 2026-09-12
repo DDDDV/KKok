@@ -6,6 +6,17 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testRenderExportSettingsAndOpenSourceLicense() async throws {
+        let suite = "SettingsRendering-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(AudioExportFormat.alac.rawValue, forKey: AudioExportFormat.preferenceKey)
+        try await attach(SettingsView().defaultAppStorage(defaults), name: "Export-settings-ALAC")
+        try await attach(SettingsView().defaultAppStorage(defaults).environment(\.dynamicTypeSize, .accessibility2),
+                         name: "Export-settings-large-text", size: CGSize(width: 375, height: 667))
+        try await attach(NavigationStack { LAMELicenseView() }, name: "Export-LAME-license")
+    }
+    @MainActor
     func testWordSweepRenderingWrapsAndTracksPauseAndBackwardSeek() throws {
         let line = try LRCParser.parse("[00:01]跟[00:02]着[00:03]音乐[00:05]轻轻唱 Hello 世界 👨‍👩‍👧‍👦[00:10]").lines[0]
         let view = KaraokeWordTextView()
