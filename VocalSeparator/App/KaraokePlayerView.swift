@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 struct KaraokeSessionView: View {
     let result: SeparationResult
@@ -120,6 +121,7 @@ struct KaraokePlayerView: View {
         .foregroundStyle(.white)
         .onChange(of: scoringSettings, initial: true) { _, _ in recording.refreshScoringPreferences() }
         .task(id: result.accompanimentURL) {
+            recording.refreshAudioRoute()
             guard !recording.isBusy else { return }
             recording.selectPitchSong(result.vocalsURL)
             recording.setVocalsEnabled(false)
@@ -143,8 +145,10 @@ struct KaraokePlayerView: View {
             Text("S I N G   Y O U R   M O M E N T")
                 .font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(.white.opacity(0.45))
             Spacer()
-            Image(systemName: "headphones").font(.system(size: 18)).foregroundStyle(.white.opacity(0.5))
-                .frame(width: 44, height: 44).accessibilityLabel("建议佩戴耳机演唱")
+            SingingRoutePicker()
+                .frame(width: 44, height: 44)
+                .disabled(recording.isBusy)
+                .accessibilityLabel("选择音频输出设备")
         }
     }
 
@@ -168,7 +172,7 @@ struct KaraokePlayerView: View {
                         .frame(width: 60).accessibilityLabel("麦克风音量")
                     Text("REC").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.red)
                 } else {
-                    Text("耳机已戴好，就开始吧")
+                    Text(recording.audioRoute.usesHeadphones ? "耳机已连接" : "建议佩戴耳机")
                         .font(.system(size: 10)).foregroundStyle(.white.opacity(0.42))
                 }
             }
@@ -226,8 +230,18 @@ struct KaraokePlayerView: View {
                         .font(.caption).foregroundStyle(.white.opacity(0.6))
                 }
             }
-            Text("建议使用有线耳机，避免外放串音与蓝牙延迟")
-                .font(.system(size: 10)).foregroundStyle(.white.opacity(0.3))
+            VStack(spacing: 4) {
+                Label(recording.audioRoute.outputName.isEmpty ? "等待音频设备" : recording.audioRoute.outputName,
+                      systemImage: recording.audioRoute.symbol)
+                    .font(.caption)
+                Text(recording.audioRoute.guidance(isRecording: isRecording))
+                    .font(.caption2).multilineTextAlignment(.center)
+            }
+            .foregroundStyle(.white.opacity(0.6))
+            .accessibilityIdentifier("karaoke.audioRoute")
+            if let notice = recording.notice {
+                Text(notice).font(.caption).foregroundStyle(.white.opacity(0.7))
+            }
             if let message = recording.scoringMessage, isRecording {
                 Text(message).font(.caption).foregroundStyle(.white.opacity(0.55))
             }
@@ -240,5 +254,20 @@ struct KaraokePlayerView: View {
                 }.font(.subheadline)
             }
         }
+    }
+}
+
+private struct SingingRoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.tintColor = .white.withAlphaComponent(0.7)
+        view.activeTintColor = .white
+        view.prioritizesVideoDevices = false
+        return view
+    }
+
+    func updateUIView(_ view: AVRoutePickerView, context: Context) {
+        view.isUserInteractionEnabled = context.environment.isEnabled
+        view.alpha = context.environment.isEnabled ? 1 : 0.4
     }
 }

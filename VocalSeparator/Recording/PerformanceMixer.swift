@@ -146,11 +146,12 @@ struct PerformanceMixer {
 }
 
 enum SingingError: LocalizedError {
-    case permissionDenied, unavailable, tooShort, invalidSamples, invalidSettings, missingEditSources, staleEdit
+    case permissionDenied, unavailable, wirelessOutputUnavailable, tooShort, invalidSamples, invalidSettings, missingEditSources, staleEdit
     var errorDescription: String? {
         switch self {
         case .permissionDenied: return "需要麦克风权限才能录制演唱，请在系统设置中允许访问麦克风。"
         case .unavailable: return "无法启动麦克风或伴奏，请检查音频设备后重试。"
+        case .wirelessOutputUnavailable: return "无线耳机未能保持音乐播放连接。请重新选择耳机，或连接有线耳机后再开始。"
         case .tooShort: return "录音太短，请至少演唱片刻后再结束。"
         case .invalidSamples: return "录音中包含无法处理的音频数据。"
         case .invalidSettings: return "人声音量需要在 0% 到 200% 之间。"

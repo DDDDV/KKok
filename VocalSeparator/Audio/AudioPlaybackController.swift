@@ -18,8 +18,13 @@ final class AudioPlaybackController: NSObject, ObservableObject {
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
     private var resumeAfterScrubbing = false
+    private var ownsAudioSession = false
+    private let deactivateSession: () -> Void
 
-    override init() {
+    init(deactivateSession: @escaping () -> Void = {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }) {
+        self.deactivateSession = deactivateSession
         super.init()
         observers.append(NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
@@ -27,7 +32,7 @@ final class AudioPlaybackController: NSObject, ObservableObject {
         ) { [weak self] notification in
             let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
             if raw == AVAudioSession.InterruptionType.began.rawValue {
-                Task { @MainActor [weak self] in self?.pause() }
+                MainActor.assumeIsolated { if self?.isPlaying == true { self?.pause() } }
             }
         })
         observers.append(NotificationCenter.default.addObserver(
@@ -36,7 +41,7 @@ final class AudioPlaybackController: NSObject, ObservableObject {
         ) { [weak self] notification in
             let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
             if raw == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue {
-                Task { @MainActor [weak self] in self?.pause() }
+                MainActor.assumeIsolated { if self?.isPlaying == true { self?.pause() } }
             }
         })
     }
@@ -108,6 +113,7 @@ final class AudioPlaybackController: NSObject, ObservableObject {
         do {
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
+            ownsAudioSession = true
             if currentTime >= duration { seek(to: 0) }
             guard player.play() else { throw CocoaError(.fileReadUnknown) }
             isPlaying = true
@@ -183,8 +189,10 @@ final class AudioPlaybackController: NSObject, ObservableObject {
     private func releaseSession() {
         timer?.invalidate()
         timer = nil
+        guard ownsAudioSession else { return }
+        ownsAudioSession = false
         UIApplication.shared.isIdleTimerDisabled = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        deactivateSession()
     }
 
 }

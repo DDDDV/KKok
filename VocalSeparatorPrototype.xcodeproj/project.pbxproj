@@ -123,7 +123,9 @@
 		E85680A5BAB5A70CCE470405 /* BundledModelContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E52E5D61D8EFD3E1EF8B4E /* BundledModelContractTests.swift */; };
 		EABCFD3AF1269C1760B0C188 /* HTDemucsModelRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */; };
 		EFCF417CFFC5AADD0B6BDD44 /* lame_global_flags.h in Headers */ = {isa = PBXBuildFile; fileRef = 53D46F1581312D42A0D3F3F1 /* lame_global_flags.h */; };
+		F48A60FCB3C3372D17BF53AD /* SingingAudioRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2173F173143692D62F924FD8 /* SingingAudioRoute.swift */; };
 		F4BF15E65152053FD30A079C /* tables.c in Sources */ = {isa = PBXBuildFile; fileRef = 027196E253C870D0DB7DD8EC /* tables.c */; };
+		F59B8E39AEB809644ED28DE6 /* WirelessAudioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A3DA0D9C34FB90E84A22CF /* WirelessAudioTests.swift */; };
 		F6F33C05B0723F1D67746C53 /* LAME.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 27644D301478D3C3C9E2F9AB /* LAME.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F9D93C78238DEF627AB20EE8 /* AudioExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F75EB8834A4AE547C68420C /* AudioExporter.swift */; };
 		FBFB5DB7B1499C5CDF12C6B9 /* CrossfadeWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE18FC7610C38FD23FE1BE4 /* CrossfadeWindowTests.swift */; };
@@ -183,6 +185,7 @@
 		1BA06E21E369B1046B90B8BA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1CF2BBA3B84021FE6B6499AD /* SongLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongLibraryStore.swift; sourceTree = "<group>"; };
 		1E07B21FA217B4614669EE7D /* vbrquantize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vbrquantize.h; sourceTree = "<group>"; };
+		2173F173143692D62F924FD8 /* SingingAudioRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingingAudioRoute.swift; sourceTree = "<group>"; };
 		23B331675D900EA71D6725F9 /* tone.flac */ = {isa = PBXFileReference; path = tone.flac; sourceTree = "<group>"; };
 		24427550421786807F3EF8CC /* AudioImportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioImportStore.swift; sourceTree = "<group>"; };
 		25FCB79426EFA1B2FA11D681 /* KaraokePitchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokePitchView.swift; sourceTree = "<group>"; };
@@ -191,6 +194,7 @@
 		2B1AAA80AE8CC068187B58A2 /* fft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fft.h; sourceTree = "<group>"; };
 		2C06D942C7C5F2A0A3703BA0 /* bitstream.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = bitstream.c; sourceTree = "<group>"; };
 		2EED44CBE2907B826F9153DE /* PerformanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceStore.swift; sourceTree = "<group>"; };
+		30A3DA0D9C34FB90E84A22CF /* WirelessAudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WirelessAudioTests.swift; sourceTree = "<group>"; };
 		34E52E5D61D8EFD3E1EF8B4E /* BundledModelContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledModelContractTests.swift; sourceTree = "<group>"; };
 		3985B2FBC1C0E26E62174937 /* vbrquantize.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vbrquantize.c; sourceTree = "<group>"; };
 		3AA99314C577413A287C50E6 /* KaraokeAudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokeAudioTests.swift; sourceTree = "<group>"; };
@@ -477,6 +481,7 @@
 				5EDBCCA517521EDFB35257E9 /* TimedLyricsTests.swift */,
 				C399311C8CDF0D2B0CF3C2AE /* TranscriptionModelManagerTests.swift */,
 				7C27CA71DDE27DA4F7DA3131 /* VocalTranscriptionTests.swift */,
+				30A3DA0D9C34FB90E84A22CF /* WirelessAudioTests.swift */,
 				B70AE71A5267118B8C33A780 /* Fixtures */,
 			);
 			path = VocalSeparatorTests;
@@ -583,6 +588,7 @@
 				7D844C073CC6FEA18AC694F3 /* AudioPlaybackController.swift */,
 				7675F64DF99343660BAC3D78 /* EmbeddedLyricsExtractor.swift */,
 				62FD52209484E8AF37A8A4E3 /* NativeAudioDecoder.swift */,
+				2173F173143692D62F924FD8 /* SingingAudioRoute.swift */,
 				1CF2BBA3B84021FE6B6499AD /* SongLibraryStore.swift */,
 				BE4471900250E90B7E7D2E6F /* SongMetadataExtractor.swift */,
 				964BF3931818DB00218D621A /* SynchronizedStemPlayer.swift */,
@@ -813,6 +819,7 @@
 				CA166017468AEDA878EC16A5 /* TimedLyricsTests.swift in Sources */,
 				1E8A4492BB4B5E8E2B778F13 /* TranscriptionModelManagerTests.swift in Sources */,
 				6174E6F02AADD6A4FA9B7F99 /* VocalTranscriptionTests.swift in Sources */,
+				F59B8E39AEB809644ED28DE6 /* WirelessAudioTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -874,6 +881,7 @@
 				C9B55F6E3C2602D6D7E9CC9B /* RollingOverlapAddWriter.swift in Sources */,
 				790B56241DF772E99F4319FB /* SeparationViewModel.swift in Sources */,
 				537BCA83DD4E39531068C722 /* SettingsView.swift in Sources */,
+				F48A60FCB3C3372D17BF53AD /* SingingAudioRoute.swift in Sources */,
 				D23C78654A027EF4D88545A6 /* SingingRecordingController.swift in Sources */,
 				B2D3247EF6511E3B66C295D5 /* SongDetailView.swift in Sources */,
 				A61DC9268E0C0FB21019369C /* SongLibraryStore.swift in Sources */,

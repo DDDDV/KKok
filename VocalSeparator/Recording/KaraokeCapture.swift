@@ -34,6 +34,7 @@ final class KaraokeCapture: KaraokeCapturing {
     private var hasInputTap = false
     private var stoppedFailure: String?
     private var pitchAnalysisEnabled = true
+    private var ownsAudioSession = false
     private(set) var duration: TimeInterval = 0
     private(set) var scoringUnavailableReason: String?
     var onCompletion: ((Bool) -> Void)?
@@ -59,14 +60,18 @@ final class KaraokeCapture: KaraokeCapturing {
         scoringUnavailableReason = nil
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            let wasWireless = SingingAudioRoute.current().isWireless
+            try session.setCategory(.playAndRecord, mode: .default, options: SingingAudioSessionPolicy.categoryOptions)
             try session.setPreferredIOBufferDuration(0.01)
             try session.setActive(true)
+            ownsAudioSession = true
+            let inputs = session.availableInputs ?? []
+            let preferred = SingingAudioSessionPolicy.preferredInput(
+                in: inputs.map(SingingAudioRoute.Port.init),
+                wirelessOutput: wasWireless || SingingAudioRoute.current().isWireless
+            )
+            try session.setPreferredInput(inputs.first { $0.uid == preferred?.id })
             guard session.isInputAvailable else { throw SingingError.unavailable }
-            let headphones = session.currentRoute.outputs.contains {
-                [.headphones, .bluetoothHFP, .bluetoothA2DP, .bluetoothLE].contains($0.portType)
-            }
-            if pitchAnalysisEnabled, !headphones { scoringUnavailableReason = "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。" }
             let engine = AVAudioEngine()
             self.engine = engine
             let playback = try SingingGuideGraph(engine: engine, accompanimentURL: accompanimentURL, vocalsURL: vocalsURL)
@@ -85,13 +90,24 @@ final class KaraokeCapture: KaraokeCapturing {
             hasInputTap = true
             engine.prepare()
             try engine.start()
+            // Starting hardware can reconfigure the route. Validate the effective output before
+            // scheduling any audible music, and use that same route for scoring eligibility.
+            let route = SingingAudioRoute.current()
+            try SingingAudioSessionPolicy.validateOutput(wasWireless: wasWireless, route: route)
+            if pitchAnalysisEnabled, !route.usesHeadphones {
+                scoringUnavailableReason = "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。"
+            }
             let id = UUID()
             generation = id
             let start = mach_absolute_time() + AVAudioTime.hostTime(forSeconds: 0.3)
             // Hardware-reported latency is an estimate, especially on Bluetooth.
-            startSeconds = AVAudioTime.seconds(forHostTime: start) + playback.outputPresentationLatency
-            worker.begin(at: startSeconds + input.presentationLatency)
-            let inputTail = input.presentationLatency + 0.08
+            let outputLatency = SingingAudioSessionPolicy.latency(node: playback.outputPresentationLatency,
+                                                                 session: session.outputLatency)
+            let inputLatency = SingingAudioSessionPolicy.latency(node: input.presentationLatency,
+                                                                session: session.inputLatency)
+            startSeconds = AVAudioTime.seconds(forHostTime: start) + outputLatency
+            worker.begin(at: startSeconds + inputLatency)
+            let inputTail = inputLatency + max(0.08, session.ioBufferDuration * 2)
             playback.play(at: AVAudioTime(hostTime: start)) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     try? await Task.sleep(nanoseconds: UInt64(max(0, inputTail) * 1_000_000_000))
@@ -121,7 +137,11 @@ final class KaraokeCapture: KaraokeCapturing {
         playback = nil
         // Drain accepted input and close the WAV before PerformanceStore reads it.
         worker?.finish()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if ownsAudioSession {
+            ownsAudioSession = false
+            try? AVAudioSession.sharedInstance().setPreferredInput(nil)
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 }
 

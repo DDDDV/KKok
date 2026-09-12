@@ -188,8 +188,11 @@ final class SingingRecordingTests: XCTestCase {
             let store = store()
             defer { try? FileManager.default.removeItem(at: store.root) }
             let capture = FixtureCapture()
-            let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true })
+            var route = WirelessAudioTests.wirelessRoute
+            let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true },
+                                                        readAudioRoute: { route })
             await controller.start(result: try result(), lyrics: nil, playback: AudioPlaybackController())
+            route = WirelessAudioTests.speakerRoute
             NotificationCenter.default.post(notification)
             for _ in 0..<100 {
                 if controller.state != .recording { break }
@@ -407,12 +410,14 @@ final class FixtureCapture: KaraokeCapturing {
     var vocalsURL: URL?
     var vocalsEnabled = false
     var vocalChanges: [Bool] = []
+    var didStart: (() -> Void)?
     func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
         startCount += 1
         if failsStart { throw SingingError.unavailable }
         self.vocalsURL = vocalsURL
         self.vocalsEnabled = vocalsEnabled
         if writesAudio { try SingingFixtures.write(microphoneURL, seconds: 0.6) { _, frame in sin(Float(frame) * 0.03) * 0.2 } }
+        didStart?()
     }
     func setVocalsEnabled(_ enabled: Bool) {
         vocalsEnabled = enabled

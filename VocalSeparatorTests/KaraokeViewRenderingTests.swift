@@ -6,6 +6,34 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testRenderWirelessHeadphoneGuidanceOnCompactAndLargeTextStage() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recording = SingingRecordingController(store: PerformanceStore(root: root),
+            capture: FixtureCapture(), requestPermission: { true },
+            readAudioRoute: { WirelessAudioTests.wirelessRoute })
+        let playback = AudioPlaybackController()
+        defer { playback.stop() }
+        let url = try AudioTestFixtures.url()
+        let result = SeparationResult(sourceName: "戴上耳机，唱一首歌", vocalsURL: url, accompanimentURL: url, duration: 2)
+        let lyrics = try LRCParser.parse("[00:00]跟着音乐轻轻唱\n[00:01]每一句都属于自己")
+        let stage = KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording,
+            startSinging: {}, togglePlayback: {}, close: {}).preferredColorScheme(.dark)
+        try await attach(stage, name: "Wireless-stage-compact", size: CGSize(width: 375, height: 667))
+        try await attach(stage.environment(\.dynamicTypeSize, .accessibility2),
+                         name: "Wireless-stage-large-text", size: CGSize(width: 375, height: 667))
+        await recording.start(result: result, lyrics: lyrics, playback: playback)
+        XCTAssertEqual(recording.state, .recording)
+        try await attach(stage, name: "Wireless-stage-recording", size: CGSize(width: 375, height: 667))
+        recording.finish()
+        for _ in 0..<200 {
+            if recording.state == .idle { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertNotNil(recording.completedPerformance)
+    }
+
+    @MainActor
     func testRenderScoringPreferencesCasualReportAndDisabledStage() async throws {
         let suite = "ScoringRendering-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

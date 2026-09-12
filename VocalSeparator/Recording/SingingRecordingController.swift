@@ -21,6 +21,7 @@ final class SingingRecordingController: ObservableObject {
     @Published private(set) var scoringMessage: String?
     @Published private(set) var preparationMessage = "正在准备麦克风…"
     @Published private(set) var activeScoringSettings = PitchScoringSettings()
+    @Published private(set) var audioRoute: SingingAudioRoute
 
     let store: PerformanceStore
     var isBusy: Bool { state != .idle }
@@ -39,6 +40,8 @@ final class SingingRecordingController: ObservableObject {
     private let analyzeReference: @Sendable (URL) throws -> PitchReference
     private let readScoringSettings: () -> PitchScoringSettings
     private var preparationTask: Task<(PendingPerformance, PitchReference?, String?), Error>?
+    private let readAudioRoute: () -> SingingAudioRoute
+    private var recordingRoute: SingingAudioRoute?
 
     init(
         store: PerformanceStore = PerformanceStore(),
@@ -47,6 +50,7 @@ final class SingingRecordingController: ObservableObject {
             await AVAudioApplication.requestRecordPermission()
         },
         readScoringSettings: @escaping () -> PitchScoringSettings = { .load() },
+        readAudioRoute: @escaping () -> SingingAudioRoute = { .current() },
         analyzeReference: @escaping @Sendable (URL) throws -> PitchReference = { try PitchFileAnalyzer.reference($0) },
         render: @escaping @Sendable (PerformanceStore, PendingPerformance) throws -> SingingPerformance = { store, pending in
             try store.finish(pending)
@@ -58,6 +62,8 @@ final class SingingRecordingController: ObservableObject {
         self.render = render
         self.analyzeReference = analyzeReference
         self.readScoringSettings = readScoringSettings
+        self.readAudioRoute = readAudioRoute
+        self.audioRoute = readAudioRoute()
         do {
             performances = try store.performances()
             pending = try store.recoverPending()
@@ -79,11 +85,11 @@ final class SingingRecordingController: ObservableObject {
         })
         observers.append(NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
-        ) { [weak self] notification in
-            let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
-            if reason == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue ||
-                reason == AVAudioSession.RouteChangeReason.newDeviceAvailable.rawValue {
-                Task { @MainActor [weak self] in self?.handleInterruption("音频设备已切换，录音已结束。") }
+        ) { [weak self] _ in
+            // Delivery is on the main queue. Do not defer a preparation-time route event until
+            // after capture.start has changed the state to recording.
+            MainActor.assumeIsolated {
+                self?.refreshAudioRoute()
             }
         })
         observers.append(NotificationCenter.default.addObserver(
@@ -168,6 +174,8 @@ final class SingingRecordingController: ObservableObject {
                 accompanimentURL: store.accompanimentURL(draft.id), vocalsURL: result.vocalsURL,
                 vocalsEnabled: vocalsEnabled, microphoneURL: store.microphoneURL(draft.id)
             )
+            audioRoute = readAudioRoute()
+            recordingRoute = audioRoute
             if scoringSettings.isEnabled {
                 scoringMessage = reason ?? capture.scoringUnavailableReason
                 try store.saveScoringContext(PitchScoringContext(reference: reference, unavailableReason: scoringMessage,
@@ -186,6 +194,7 @@ final class SingingRecordingController: ObservableObject {
             guard startID == id else { return }
             preparationTask = nil
             capture.stop()
+            recordingRoute = nil
             if let pending { try? store.remove(pending.id) }
             pending = nil
             startID = nil
@@ -198,6 +207,14 @@ final class SingingRecordingController: ObservableObject {
         guard state == .idle || state == .recording else { return }
         vocalsEnabled = enabled
         if state == .recording { capture.setVocalsEnabled(enabled) }
+    }
+
+    func refreshAudioRoute() {
+        let route = readAudioRoute()
+        audioRoute = route
+        guard state == .recording, let recordingRoute,
+              !route.hasSameCaptureConfiguration(as: recordingRoute) else { return }
+        finish(notice: "音频设备已切换，已结束演唱并保存录下的部分。请确认耳机连接后重新开始。")
     }
 
     func selectPitchSong(_ vocalsURL: URL) {
@@ -223,6 +240,7 @@ final class SingingRecordingController: ObservableObject {
     func finish(notice: String? = nil) {
         guard state == .recording else { return }
         state = .mixing // Ignore duplicate completion, route and user-stop events.
+        recordingRoute = nil
         currentTime = min(max(capture.currentTime, 0), duration)
         timer?.invalidate()
         timer = nil
