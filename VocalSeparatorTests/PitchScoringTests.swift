@@ -356,16 +356,21 @@ final class PitchFixtureCapture: KaraokeCapturing {
     var level: Float = 0.2
     var onCompletion: ((Bool) -> Void)?
     var scoringUnavailableReason: String?
+    var captureFailure: String?
     var startCount = 0
+    var pitchAnalysisEnabled = true
+    var microphoneFrequency: Double = 440
     init(frames: [PitchFrame]) { self.frames = frames }
     func drainPitchFrames() -> [PitchFrame] { defer { pendingFrames = [] }; return pendingFrames }
     func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
         startCount += 1
-        pendingFrames = frames
+        pendingFrames = pitchAnalysisEnabled ? frames : []
+        let frequency = microphoneFrequency
         try SingingFixtures.write(microphoneURL, seconds: 1.9) { _, index in
-            Float(0.2 * sin(2 * .pi * 440 * Double(index) / 44_100))
+            Float(0.2 * sin(2 * .pi * frequency * Double(index) / 44_100))
         }
     }
+    func setPitchAnalysisEnabled(_ enabled: Bool) { pitchAnalysisEnabled = enabled }
     func setVocalsEnabled(_ enabled: Bool) {}
     func stop() {}
 }

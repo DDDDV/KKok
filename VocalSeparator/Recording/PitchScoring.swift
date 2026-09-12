@@ -18,6 +18,9 @@ struct PitchScoreReport: Codable, Equatable, Sendable {
     let unavailableReason: String?
     // Version the scoring rules with the saved result; effects never recalculate dry-voice scores.
     let version: Int
+    // Missing in old manifests: those scores always used the strict rules.
+    var scoringMode: PitchScoringMode? = nil
+    var mode: PitchScoringMode { scoringMode ?? .strict }
 
     var assessment: String {
         guard let score else { return "暂未评分" }
@@ -33,6 +36,8 @@ struct PitchScoreReport: Codable, Equatable, Sendable {
 struct PitchScoringContext: Codable, Sendable {
     let reference: PitchReference?
     let unavailableReason: String?
+    var scoringMode: PitchScoringMode? = nil
+    var mode: PitchScoringMode { scoringMode ?? .strict }
 }
 
 /// Fixed song-clock comparison, without unrestricted time warping or octave folding.
@@ -41,10 +46,12 @@ struct PitchScorer {
     private let reference: [PitchFrame]
     private let songDuration: Double
     private var observations: [Int: PitchFrame] = [:]
+    private let mode: PitchScoringMode
 
-    init(reference: PitchReference) {
+    init(reference: PitchReference, mode: PitchScoringMode = .strict) {
         self.reference = reference.scorableFrames
         songDuration = reference.duration
+        self.mode = mode
     }
 
     mutating func append(_ frames: [PitchFrame]) {
@@ -66,9 +73,8 @@ struct PitchScorer {
             guard let actual = observations[Self.key(target.time)]?.reliableMidi else { continue }
             voiced += 1
             let cents = abs(actual - expected) * 100
-            if cents <= 50 { matched += 1 }
-            // 25-cent full-credit band; fades to zero at one semitone.
-            points += max(0, min(1, (100 - cents) / 75))
+            if mode.isMatch(cents: cents) { matched += 1 }
+            points += mode.points(forCents: cents)
         }
         let seconds = Double(total) * PitchDetector.step
         guard total > 0 else { return (nil, 0, 0, 0) }
@@ -94,6 +100,6 @@ struct PitchScorer {
         return PitchScoreReport(score: reason == nil ? stats.score : nil, matchedPercent: stats.matched,
                                 voicedPercent: stats.voiced, referenceSeconds: stats.seconds,
                                 recordedDuration: end, songDuration: songDuration, phrases: phrases,
-                                unavailableReason: reason, version: 1)
+                                unavailableReason: reason, version: 1, scoringMode: mode)
     }
 }

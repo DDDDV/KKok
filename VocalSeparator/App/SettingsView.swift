@@ -3,13 +3,32 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AudioExportFormat.preferenceKey) private var storedFormat = AudioExportFormat.wav.rawValue
+    @AppStorage(PitchScoringSettings.enabledKey) private var scoringEnabled = true
+    @AppStorage(PitchScoringSettings.modeKey) private var storedScoringMode = PitchScoringMode.strict.rawValue
     @State private var showingAbout = false
 
     private var selectedFormat: AudioExportFormat { AudioExportFormat(rawValue: storedFormat) ?? .wav }
+    private var scoringMode: PitchScoringMode { PitchScoringMode(rawValue: storedScoringMode) ?? .strict }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("启用音准评分", isOn: $scoringEnabled)
+                        .accessibilityIdentifier("settings.pitchScoringEnabled")
+                    Picker("评分模式", selection: Binding(
+                        get: { scoringMode }, set: { storedScoringMode = $0.rawValue }
+                    )) {
+                        ForEach(PitchScoringMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }
+                    .disabled(!scoringEnabled)
+                    .accessibilityIdentifier("settings.pitchScoringMode")
+                    if scoringEnabled {
+                        Text(scoringMode.detail).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                } header: { Text("演唱评分") } footer: {
+                    Text("设置从下一次演唱生效。关闭后隐藏音准轨道，演唱不再生成分数。已有作品的分数和评分模式会保留。")
+                }
                 Section {
                     Picker("导出格式", selection: Binding(
                         get: { selectedFormat }, set: { storedFormat = $0.rawValue }

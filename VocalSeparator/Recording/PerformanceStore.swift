@@ -63,20 +63,29 @@ struct PerformanceStore: Sendable {
         try JSONEncoder().encode(context).write(to: directory(id).appendingPathComponent("pitch-context.json"), options: .atomic)
     }
 
+    func scoringSettings(for id: UUID) -> PitchScoringSettings {
+        let url = directory(id).appendingPathComponent("pitch-context.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return .init(isEnabled: false) }
+        let context = try? JSONDecoder().decode(PitchScoringContext.self, from: Data(contentsOf: url))
+        return .init(isEnabled: true, mode: context?.mode ?? .strict)
+    }
+
     private func score(_ pending: PendingPerformance, duration: Double) -> PitchScoreReport? {
         let url = directory(pending.id).appendingPathComponent("pitch-context.json")
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil } // Legacy take.
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil } // Scoring disabled or legacy take.
+        var mode = PitchScoringMode.strict
         do {
             let context = try JSONDecoder().decode(PitchScoringContext.self, from: Data(contentsOf: url))
+            mode = context.mode
             let reference = context.reference ?? PitchReference(duration: duration, frames: [])
-            var scorer = PitchScorer(reference: reference)
+            var scorer = PitchScorer(reference: reference, mode: context.mode)
             if context.unavailableReason == nil, context.reference != nil {
                 scorer.append(try PitchFileAnalyzer.analyze(microphoneURL(pending.id)).frames)
             }
             return scorer.report(until: duration, lyrics: pending.lyrics, unavailableReason: context.unavailableReason)
         } catch {
             // An analysis error must never discard an otherwise playable recording.
-            return PitchScorer(reference: PitchReference(duration: duration, frames: []))
+            return PitchScorer(reference: PitchReference(duration: duration, frames: []), mode: mode)
                 .report(until: duration, lyrics: pending.lyrics, unavailableReason: "音准分析未完成，录音已保存")
         }
     }

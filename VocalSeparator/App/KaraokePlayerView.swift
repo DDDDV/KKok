@@ -44,14 +44,22 @@ struct KaraokePlayerView: View {
     var close: (() -> Void)? = nil
     var artworkURL: URL? = nil
     @State private var selectionError: String?
+    @AppStorage(PitchScoringSettings.enabledKey) private var scoringEnabled = true
+    @AppStorage(PitchScoringSettings.modeKey) private var storedScoringMode = PitchScoringMode.strict.rawValue
 
     private var isRecording: Bool { recording.state == .recording }
     private var clockTime: TimeInterval { isRecording ? recording.currentTime : playback.currentTime }
     private var clockDuration: TimeInterval { isRecording ? recording.duration : max(playback.duration, result.duration) }
+    private var scoringSettings: PitchScoringSettings {
+        recording.isBusy ? recording.activeScoringSettings
+            : PitchScoringSettings(isEnabled: scoringEnabled, mode: PitchScoringMode(rawValue: storedScoringMode) ?? .strict)
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let compact = geometry.size.height < 700
+            let lyricsHeight = scoringSettings.isEnabled
+                ? (compact ? 90 : max(120, geometry.size.height - 620)) : max(120, geometry.size.height - 440)
             ZStack {
                 StudioTheme.stage.ignoresSafeArea()
                 RadialGradient(colors: [Color(red: 0.39, green: 0.17, blue: 0.12).opacity(0.75), .clear],
@@ -70,15 +78,17 @@ struct KaraokePlayerView: View {
                             }
                         }
                         .padding(.bottom, compact ? 4 : 12)
-                        KaraokePitchView(reference: recording.pitchReference, trace: recording.pitchTrace,
-                                         currentTime: clockTime, isRecording: isRecording,
-                                         isPreparing: recording.state == .preparing,
-                                         report: recording.livePitchReport, unavailableReason: recording.scoringMessage,
-                                         compact: compact)
-                            .padding(.horizontal, -28).padding(.bottom, compact ? 4 : 12)
+                        if scoringSettings.isEnabled {
+                            KaraokePitchView(reference: recording.pitchReference, trace: recording.pitchTrace,
+                                             currentTime: clockTime, isRecording: isRecording,
+                                             isPreparing: recording.state == .preparing,
+                                             report: recording.livePitchReport, unavailableReason: recording.scoringMessage,
+                                             compact: compact, mode: scoringSettings.mode)
+                                .padding(.horizontal, -28).padding(.bottom, compact ? 4 : 12)
+                        }
                         if let lyrics {
                             KaraokeLyricsView(lyrics: lyrics, currentTime: clockTime,
-                                              viewportHeight: compact ? 90 : max(120, geometry.size.height - 620), immersive: true)
+                                              viewportHeight: lyricsHeight, immersive: true)
                                 .mask {
                                     LinearGradient(stops: [.init(color: .clear, location: 0),
                                                            .init(color: .black, location: 0.15),
@@ -97,7 +107,7 @@ struct KaraokePlayerView: View {
                                 Text("可在歌曲详情中添加同步歌词")
                                     .font(.caption).foregroundStyle(.white.opacity(0.38))
                             }
-                            .frame(maxWidth: .infinity).frame(height: compact ? 90 : max(120, geometry.size.height - 620))
+                            .frame(maxWidth: .infinity).frame(height: lyricsHeight)
                         }
                         transport(compact: compact).padding(.top, compact ? 4 : 10)
                     }
@@ -108,6 +118,7 @@ struct KaraokePlayerView: View {
             }
         }
         .foregroundStyle(.white)
+        .onChange(of: scoringSettings, initial: true) { _, _ in recording.refreshScoringPreferences() }
         .task(id: result.accompanimentURL) {
             guard !recording.isBusy else { return }
             recording.selectPitchSong(result.vocalsURL)
@@ -175,7 +186,9 @@ struct KaraokePlayerView: View {
                 }.font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
             }
             if recording.state == .preparing || recording.state == .mixing {
-                ProgressView(recording.state == .mixing ? "正在评分并保存演唱…" : recording.preparationMessage)
+                ProgressView(recording.state == .mixing
+                             ? (recording.activeScoringSettings.isEnabled ? "正在评分并保存演唱…" : "正在保存演唱…")
+                             : recording.preparationMessage)
                     .tint(.white).frame(height: 86)
             } else {
                 HStack(alignment: .center, spacing: 36) {

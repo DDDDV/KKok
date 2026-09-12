@@ -6,6 +6,48 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testRenderScoringPreferencesCasualReportAndDisabledStage() async throws {
+        let suite = "ScoringRendering-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(PitchScoringMode.casual.rawValue, forKey: PitchScoringSettings.modeKey)
+        try await attach(SettingsView().defaultAppStorage(defaults), name: "Scoring-settings-casual")
+        try await attach(SettingsView().defaultAppStorage(defaults).environment(\.dynamicTypeSize, .accessibility2),
+                         name: "Scoring-settings-large-text", size: CGSize(width: 375, height: 667))
+        defaults.set(false, forKey: PitchScoringSettings.enabledKey)
+        try await attach(SettingsView().defaultAppStorage(defaults), name: "Scoring-settings-disabled")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recording = SingingRecordingController(store: PerformanceStore(root: root),
+            capture: PitchFixtureCapture(frames: []), requestPermission: { true },
+            readScoringSettings: { .load(from: defaults) })
+        let source = try AudioTestFixtures.url()
+        let result = SeparationResult(sourceName: "轻松唱一首", vocalsURL: source, accompanimentURL: source, duration: 2)
+        let lyrics = try LRCParser.parse("[00:00]跟着音乐轻轻唱\n[00:01]每一句都属于自己")
+        let playback = AudioPlaybackController()
+        defer { playback.stop() }
+        await recording.start(result: result, lyrics: lyrics, playback: playback)
+        let stage = KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording,
+                                      startSinging: {}, togglePlayback: {}, close: {})
+            .defaultAppStorage(defaults).preferredColorScheme(.dark)
+        try await attach(stage, name: "Scoring-disabled-stage-compact", size: CGSize(width: 375, height: 667))
+        recording.finish()
+        for _ in 0..<300 {
+            if recording.state != .mixing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let performance = try XCTUnwrap(recording.completedPerformance)
+        XCTAssertNil(performance.pitchScore)
+        try await attach(PerformanceReviewView(performance: performance, store: recording.store, playback: playback),
+                         name: "Scoring-disabled-review")
+        var scorer = PitchScorer(reference: PitchScoringSettingsTests.reference, mode: .casual)
+        scorer.append(PitchScoringSettingsTests.frames(midi: 69.75))
+        let report = scorer.report(until: 2, lyrics: lyrics)
+        try await attach(ScrollView { PitchScoreCard(report: report).padding(20) }
+            .background(StudioTheme.stage).preferredColorScheme(.dark), name: "Scoring-casual-report")
+    }
+
+    @MainActor
     func testRenderPitchTrackAndScoreCardOnCompactAndLargeTextScreens() async throws {
         let frames = stride(from: 0.032, to: 8.0, by: 0.02).map { time in
             PitchFrame(time: time, midi: [60.0, 64, 62, 67][min(3, Int(time / 2))], confidence: 1)

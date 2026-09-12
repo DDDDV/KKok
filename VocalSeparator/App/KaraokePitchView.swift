@@ -10,6 +10,7 @@ struct KaraokePitchView: View {
     let report: PitchScoreReport?
     let unavailableReason: String?
     var compact = false
+    var mode: PitchScoringMode = .strict
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pitchRange: ClosedRange<Double> = 48...72
 
@@ -29,7 +30,7 @@ struct KaraokePitchView: View {
         if unavailableReason != nil { return "本次暂不评分" }
         guard let target else { return "无参考音符 · 暂不评分" }
         guard let actual else { return "等待歌声" }
-        if abs(actual - target) <= 0.5 { return "很准，保持住" }
+        if mode.isMatch(cents: (actual - target) * 100) { return "很准，保持住" }
         return actual > target ? "偏高 ↓" : "偏低 ↑"
     }
 
@@ -102,7 +103,7 @@ struct KaraokePitchView: View {
                     diamond.addLine(to: CGPoint(x: centre.x, y: centre.y + 7))
                     diamond.addLine(to: CGPoint(x: centre.x - 7, y: centre.y)); diamond.closeSubpath()
                     context.fill(diamond, with: .color(.white))
-                    if !reduceMotion, unavailableReason == nil, let target, abs(actual - target) <= 0.5 {
+                    if !reduceMotion, unavailableReason == nil, let target, mode.isMatch(cents: (actual - target) * 100) {
                         for index in 0..<6 {
                             let phase = (time * 1.5 + Double(index) / 6).truncatingRemainder(dividingBy: 1)
                             let point = CGPoint(x: centre.x - phase * 65, y: centre.y + sin(Double(index) * 2.4) * phase * 25)
@@ -121,13 +122,13 @@ struct KaraokePitchView: View {
             HStack {
                 Text(feedback).foregroundStyle(violet)
                 Spacer()
-                Text("原调 · 音准练习").foregroundStyle(.white.opacity(0.35))
+                Text("\(mode.title) · 原调").foregroundStyle(.white.opacity(0.35))
             }.font(.system(size: 11)).padding(.horizontal, 20).padding(.top, 8)
         }
         .padding(.vertical, 10)
         .background(LinearGradient(colors: [violet.opacity(0.05), .clear], startPoint: .leading, endPoint: .trailing))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("音准轨道，\(feedback)")
+        .accessibilityLabel("音准轨道，\(mode.title)，\(feedback)")
         .accessibilityValue(report?.score.map { "当前得分 \($0) 分" } ?? "暂无分数")
         .accessibilityIdentifier("karaoke.pitch")
         .onChange(of: reference, initial: true) { _, reference in
@@ -153,8 +154,10 @@ struct PitchScoreCard: View {
             HStack {
                 Label("音准成绩", systemImage: "waveform.path").font(.headline)
                 Spacer()
-                Text(report.recordedDuration + 0.5 < report.songDuration ? "已录片段" : "整首演唱")
-                    .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(report.mode.title)
+                    Text(report.recordedDuration + 0.5 < report.songDuration ? "已录片段" : "整首演唱")
+                }.font(.caption).foregroundStyle(.secondary)
             }
             summaryLayout {
                 ZStack {

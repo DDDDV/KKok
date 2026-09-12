@@ -9,6 +9,7 @@ protocol KaraokeCapturing: AnyObject {
     var scoringUnavailableReason: String? { get }
     var captureFailure: String? { get }
     func drainPitchFrames() -> [PitchFrame]
+    func setPitchAnalysisEnabled(_ enabled: Bool)
     func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws
     func setVocalsEnabled(_ enabled: Bool)
     func stop()
@@ -18,6 +19,7 @@ extension KaraokeCapturing {
     var scoringUnavailableReason: String? { nil }
     var captureFailure: String? { nil }
     func drainPitchFrames() -> [PitchFrame] { [] }
+    func setPitchAnalysisEnabled(_ enabled: Bool) {}
 }
 
 /// Both guide stems share one render clock. The input tap records dry audio only.
@@ -31,6 +33,7 @@ final class KaraokeCapture: KaraokeCapturing {
     private var stoppedTime: Double = 0
     private var hasInputTap = false
     private var stoppedFailure: String?
+    private var pitchAnalysisEnabled = true
     private(set) var duration: TimeInterval = 0
     private(set) var scoringUnavailableReason: String?
     var onCompletion: ((Bool) -> Void)?
@@ -43,6 +46,10 @@ final class KaraokeCapture: KaraokeCapturing {
         worker?.failure ?? stoppedFailure ?? (engine != nil && engine?.isRunning == false ? "音频引擎已停止，已保留录下的部分。" : nil)
     }
     func drainPitchFrames() -> [PitchFrame] { worker?.drainPitchFrames() ?? [] }
+    func setPitchAnalysisEnabled(_ enabled: Bool) {
+        guard engine == nil else { return }
+        pitchAnalysisEnabled = enabled
+    }
 
     func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
         stop()
@@ -59,7 +66,7 @@ final class KaraokeCapture: KaraokeCapturing {
             let headphones = session.currentRoute.outputs.contains {
                 [.headphones, .bluetoothHFP, .bluetoothA2DP, .bluetoothLE].contains($0.portType)
             }
-            if !headphones { scoringUnavailableReason = "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。" }
+            if pitchAnalysisEnabled, !headphones { scoringUnavailableReason = "本次使用外放，未评分。佩戴耳机后重新演唱可获得音准评分。" }
             let engine = AVAudioEngine()
             self.engine = engine
             let playback = try SingingGuideGraph(engine: engine, accompanimentURL: accompanimentURL, vocalsURL: vocalsURL)
@@ -69,7 +76,8 @@ final class KaraokeCapture: KaraokeCapturing {
             let input = engine.inputNode
             let inputFormat = input.outputFormat(forBus: 0)
             guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else { throw SingingError.unavailable }
-            let worker = try SingingCaptureWorker(url: microphoneURL, sampleRate: inputFormat.sampleRate, duration: duration)
+            let worker = try SingingCaptureWorker(url: microphoneURL, sampleRate: inputFormat.sampleRate,
+                                                 duration: duration, analyzePitch: pitchAnalysisEnabled)
             self.worker = worker
             input.installTap(onBus: 0, bufferSize: 1_024, format: inputFormat) { buffer, time in
                 worker.enqueue(buffer, hostTime: time.isHostTimeValid ? time.hostTime : nil)
@@ -167,7 +175,7 @@ final class SingingCaptureWorker: @unchecked Sendable {
     private var meter: Float = 0
     private var errorText: String?
     private let format: AVAudioFormat
-    private let analyzer: PitchPCMAnalyzer
+    private let analyzer: PitchPCMAnalyzer?
     private var file: AVAudioFile?
     private let maximumFrames: Int
     private var writtenFrames = 0 // queue only
@@ -175,11 +183,11 @@ final class SingingCaptureWorker: @unchecked Sendable {
     var level: Float { lock.withLock { meter } }
     var failure: String? { lock.withLock { errorText } }
 
-    init(url: URL, sampleRate: Double, duration: Double) throws {
+    init(url: URL, sampleRate: Double, duration: Double, analyzePitch: Bool = true) throws {
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
                                         channels: 1, interleaved: false) else { throw SingingError.unavailable }
         self.format = format
-        analyzer = try PitchPCMAnalyzer(format: format)
+        analyzer = analyzePitch ? try PitchPCMAnalyzer(format: format) : nil
         file = try AVAudioFile(forWriting: url, settings: format.settings)
         maximumFrames = Int((duration * sampleRate).rounded())
     }
@@ -226,7 +234,7 @@ final class SingingCaptureWorker: @unchecked Sendable {
         samples.withUnsafeBufferPointer { if let start = $0.baseAddress { pointer.update(from: start, count: samples.count) } }
         try file.write(from: buffer)
         writtenFrames += samples.count
-        let frames = try analyzer.append(buffer)
+        let frames = try analyzer?.append(buffer) ?? []
         let rms = sqrt(samples.reduce(Float(0)) { $0 + $1 * $1 } / Float(max(1, samples.count)))
         lock.withLock { pitchFrames += frames; meter = min(1, rms) }
     }
@@ -243,7 +251,7 @@ final class SingingCaptureWorker: @unchecked Sendable {
         lock.withLock { accepting = false }
         queue.sync {
             do {
-                let tail = try analyzer.finish()
+                let tail = try analyzer?.finish() ?? []
                 lock.withLock { pitchFrames += tail }
             } catch { lock.withLock { errorText = "音高分析未完成，录音已保留。" } }
             file = nil
