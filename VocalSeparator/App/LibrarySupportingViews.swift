@@ -31,7 +31,7 @@ struct TranscriptResultCard: View {
                     HStack(spacing: 12) {
                         if modelDownloadProgress == nil {
                             ProgressView()
-                                .tint(.pink)
+                                .tint(StudioTheme.accent)
                         }
                         Text(statusText)
                             .font(.caption)
@@ -43,7 +43,7 @@ struct TranscriptResultCard: View {
 
                     if let modelDownloadProgress {
                         ProgressView(value: modelDownloadProgress)
-                            .tint(.pink)
+                            .tint(StudioTheme.accent)
                         Text(modelDownloadProgress, format: .percent.precision(.fractionLength(0)))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)

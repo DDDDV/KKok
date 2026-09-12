@@ -2,7 +2,7 @@ import Foundation
 
 struct SingingPerformance: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
-    let title: String
+    var title: String
     let createdAt: Date
     let duration: TimeInterval
     let lyrics: TimedLyrics?
@@ -79,6 +79,18 @@ struct PerformanceStore: Sendable {
         [microphoneURL(performance.id), accompanimentURL(performance.id)].allSatisfy {
             FileManager.default.fileExists(atPath: $0.path)
         }
+    }
+
+    /// Rename only the manifest; keep the mix and original stems at stable paths.
+    func rename(_ performance: SingingPerformance, title: String) throws -> SingingPerformance {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { throw CocoaError(.validationMissingMandatoryProperty) }
+        let manifest = directory(performance.id).appendingPathComponent("performance.json")
+        var current = try JSONDecoder().decode(SingingPerformance.self, from: Data(contentsOf: manifest))
+        guard current == performance else { throw SingingError.staleEdit }
+        current.title = title
+        try JSONEncoder().encode(current).write(to: manifest, options: .atomic)
+        return current
     }
 
     func render(_ performance: SingingPerformance, settings: PerformanceMixSettings, to output: URL) throws -> RenderedPerformance {

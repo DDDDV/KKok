@@ -130,6 +130,23 @@ final class SeparationViewModel: ObservableObject {
         } catch { present(error: error, title: "重命名失败") }
     }
 
+    func toggleFavorite(_ song: LibrarySong) {
+        guard canManageLibrary else { return }
+        do {
+            try updateSong(song.id) { $0.isFavorite = !($0.isFavorite ?? false) }
+        } catch { present(error: error, title: "无法更新收藏") }
+    }
+
+    /// Opens a candidate from the visible filtered list, without starting recording.
+    @discardableResult
+    func selectRandomAccompaniment(from candidates: [LibrarySong]) -> Bool {
+        guard canManageLibrary else { return false }
+        let ids = Set(candidates.map(\.id))
+        guard let song = separatedSongs.filter({ ids.contains($0.id) }).randomElement() else { return false }
+        selectSong(song)
+        return selectedSongID == song.id && result != nil
+    }
+
     func deleteSong(_ song: LibrarySong, separationOnly: Bool) {
         guard canManageLibrary else { return }
         do {

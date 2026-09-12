@@ -189,6 +189,16 @@ final class SingingRecordingController: ObservableObject {
         }
     }
 
+    func rename(_ performance: SingingPerformance, title: String) {
+        guard !isBusy else { return }
+        do {
+            let updated = try store.rename(performance, title: title)
+            didSaveAdjustments(updated)
+            if completedPerformance?.id == updated.id { completedPerformance = updated }
+            errorText = nil
+        } catch { errorText = "重命名失败：\(error.localizedDescription)" }
+    }
+
     func handleBackground() { handleInterruption("应用已进入后台，录音已结束。") }
 
     private func handleInterruption(_ message: String) {

@@ -4,13 +4,19 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     enum LibraryTab: Hashable { case songs, accompaniments, performances }
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var viewModel: SeparationViewModel
     @State private var selectedTab: LibraryTab
     @State private var songSearch = ""
     @State private var accompanimentSearch = ""
     @State private var performanceSearch = ""
     @State private var onlyUnseparated = false
-    @State private var sortByTitle = false
+    @AppStorage("library.songSort") private var songSort: LibrarySortOrder = .recent
+    @AppStorage("library.accompanimentSort") private var accompanimentSort: LibrarySortOrder = .recent
+    @AppStorage("library.performanceSort") private var performanceSort: LibrarySortOrder = .recent
+    @State private var favoriteSongsOnly = false
+    @State private var favoriteAccompanimentsOnly = false
+    @State private var lyricsReadyOnly = false
     @State private var isShowingLegal = false
     @State private var isShowingSong = false
     @State private var isShowingStage = false
@@ -20,6 +26,7 @@ struct ContentView: View {
     @State private var deletesSeparationOnly = false
     @State private var deletingPerformance: SingingPerformance?
     @State private var renamingSong: LibrarySong?
+    @State private var renamingPerformance: SingingPerformance?
     @State private var editedTitle = ""
     @State private var isDiscardingRecording = false
 
@@ -70,13 +77,19 @@ struct ContentView: View {
             PerformanceReviewView(performance: performance, store: viewModel.recording.store,
                                   playback: viewModel.playback, onSave: viewModel.recording.didSaveAdjustments)
         }
-        .alert("重命名歌曲", isPresented: Binding(get: { renamingSong != nil }, set: { if !$0 { renamingSong = nil } })) {
-            TextField("歌曲名称", text: $editedTitle)
+        .alert(renamingPerformance == nil ? "重命名歌曲" : "重命名演唱", isPresented: Binding(
+            get: { renamingSong != nil || renamingPerformance != nil },
+            set: { if !$0 { renamingSong = nil; renamingPerformance = nil } }
+        )) {
+            TextField("名称", text: $editedTitle)
             Button("保存") {
                 if let song = renamingSong { viewModel.renameSong(song, title: editedTitle) }
+                if let performance = renamingPerformance { viewModel.recording.rename(performance, title: editedTitle) }
                 renamingSong = nil
+                renamingPerformance = nil
             }
-            Button("取消", role: .cancel) { renamingSong = nil }
+            .disabled(editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("取消", role: .cancel) { renamingSong = nil; renamingPerformance = nil }
         }
         .confirmationDialog(deletesSeparationOnly ? "删除分离结果？" : "删除这首歌曲？", isPresented: Binding(
             get: { deletingSong != nil }, set: { if !$0 { deletingSong = nil } }
@@ -113,15 +126,21 @@ struct ContentView: View {
     }
 
     private func libraryPage(_ tab: LibraryTab) -> some View {
+        GeometryReader { geometry in
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 22) {
                     pageHeader(tab)
                     if tab == .songs { songsContent }
                     if tab == .accompaniments { accompanimentsContent }
                     if tab == .performances { performancesContent }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 28)
+                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 28)
+                .frame(maxWidth: 640)
+                .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .foregroundStyle(StudioTheme.ink)
+            .environment(\.studioCompactLayout, geometry.size.height < 620)
             .background(StudioTheme.paper)
             .toolbarBackground(StudioTheme.paper, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
@@ -135,123 +154,116 @@ struct ContentView: View {
                     }
                 }
             }
+        }
     }
 
     private func pageHeader(_ tab: LibraryTab) -> some View {
         HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("随 心 唱  /  YOUR MUSIC, YOUR VOICE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.2)
-                    .foregroundStyle(StudioTheme.accent)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("随心唱 · 从心开唱", systemImage: "heart.fill")
+                    .font(.caption.weight(.semibold)).foregroundStyle(StudioTheme.accent)
                 Text(tab == .songs ? "歌曲库" : tab == .accompaniments ? "伴奏库" : "我的演唱")
-                    .font(.system(size: 32, weight: .bold)).tracking(-1)
-                    .foregroundStyle(StudioTheme.ink)
+                    .font(.largeTitle.bold()).tracking(-1)
+                    .accessibilityAddTraits(.isHeader)
             }
-            Spacer()
+            Spacer(minLength: 12)
             Button { isShowingLegal = true } label: {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 19))
-                    .frame(width: 44, height: 44).background(.white.opacity(0.8), in: Circle())
+                Image(systemName: "info").font(.system(size: 18, weight: .semibold))
+                    .frame(width: 44, height: 44).background(.white.opacity(0.9), in: Circle())
+                    .overlay { Circle().stroke(StudioTheme.border.opacity(0.5), lineWidth: 1) }
             }
-            .foregroundStyle(StudioTheme.ink).accessibilityLabel("关于与许可")
+            .accessibilityLabel("关于与许可")
         }
     }
 
     private var songsContent: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            ZStack(alignment: .trailing) {
-                RecordArtwork(title: "随心唱", size: 168).rotationEffect(.degrees(-18))
-                    .offset(x: 38, y: -2).opacity(0.7).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("把喜欢的歌\n唱成自己的。").font(.system(size: 27, weight: .semibold)).lineSpacing(4)
-                    Text("从一首歌，开始你的音乐时刻")
-                        .font(.caption).foregroundStyle(.white.opacity(0.65))
-                    Button(action: importSongs) {
-                        Label(viewModel.isImporting ? "正在导入…" : "导入歌曲", systemImage: "plus")
-                            .font(.subheadline.bold()).padding(.horizontal, 18).padding(.vertical, 12)
-                            .foregroundStyle(StudioTheme.ink).background(StudioTheme.mint, in: Capsule())
-                    }
-                    .disabled(!viewModel.canManageLibrary).accessibilityIdentifier("library.import")
+        VStack(alignment: .leading, spacing: 18) {
+            StudioHeroCard(eyebrow: "你的私人歌单", title: "喜欢的歌，\n随心唱。",
+                           subtitle: "\(viewModel.songs.count) 首歌曲 · \(viewModel.separatedSongs.count) 首伴奏已就绪") {
+                Button(action: importSongs) {
+                    Label(viewModel.isImporting ? "正在导入…" : "导入歌曲", systemImage: "plus")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading).padding(24)
+                .buttonStyle(StudioHeroButtonStyle())
+                .disabled(!viewModel.canManageLibrary).accessibilityIdentifier("library.import")
             }
-            .foregroundStyle(.white).background(StudioTheme.ink)
-            .clipShape(RoundedRectangle(cornerRadius: 26))
-
             StudioSearchField(text: $songSearch, placeholder: "搜索你的歌曲")
-            HStack(spacing: 8) {
-                filterPill("全部 \(viewModel.songs.count)", selected: !onlyUnseparated) { onlyUnseparated = false }
-                filterPill("待分离", selected: onlyUnseparated) { onlyUnseparated = true }
-                Spacer()
-                Menu {
-                    Button("最近导入", systemImage: sortByTitle ? "clock" : "checkmark") { sortByTitle = false }
-                    Button("歌曲名称", systemImage: sortByTitle ? "checkmark" : "textformat") { sortByTitle = true }
-                } label: { Image(systemName: "arrow.up.arrow.down").frame(width: 44, height: 40) }
-                    .foregroundStyle(.secondary).accessibilityLabel("歌曲排序")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterPill("全部", symbol: "music.note.list", selected: !onlyUnseparated && !favoriteSongsOnly) {
+                        onlyUnseparated = false; favoriteSongsOnly = false
+                    }
+                    filterPill("收藏", symbol: "heart", selected: favoriteSongsOnly) { favoriteSongsOnly.toggle() }
+                        .accessibilityIdentifier("library.songs.favorites")
+                    filterPill("待分离", symbol: "waveform.path", selected: onlyUnseparated) { onlyUnseparated.toggle() }
+                }
             }
-            let songs = filteredSongs
+            browserToolbar("我的歌曲", count: filteredSongs.count, sort: $songSort, identifier: "songs")
             if !viewModel.isLibraryAvailable {
                 StudioEmptyState(symbol: "externaldrive.badge.exclamationmark", title: "歌曲库暂时无法打开",
                                  message: "文件仍保存在本机，请重启应用后重试。")
             } else if viewModel.songs.isEmpty {
                 StudioEmptyState(symbol: "music.note.list", title: "让第一首歌住进来",
-                                 message: "从“文件”导入音频，支持一次选择多首。\n也可以为单首歌曲同时添加 LRC 歌词。")
-            } else if songs.isEmpty {
-                StudioEmptyState(symbol: "magnifyingglass", title: "没有找到歌曲", message: "试试其他关键词，或切换歌曲分类。")
+                                 message: "从“文件”一次导入多首音频，\n也可以为单首歌曲同时添加 LRC 歌词。")
+            } else if filteredSongs.isEmpty {
+                StudioEmptyState(symbol: favoriteSongsOnly ? "heart" : "magnifyingglass", title: "这里还没有歌曲",
+                                 message: "点歌曲旁的爱心即可收藏，或试试其他筛选条件。",
+                                 actionTitle: "显示全部歌曲", action: {
+                    songSearch = ""; favoriteSongsOnly = false; onlyUnseparated = false
+                })
             } else {
-                LazyVStack(spacing: 0) { ForEach(songs) { song in songRow(song, separated: false) } }
+                LazyVStack(spacing: 10) { ForEach(filteredSongs) { song in songRow(song, separated: false) } }
             }
             Label("歌曲与作品保存在本机", systemImage: "internaldrive")
-                .font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                .font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 4)
         }
     }
 
     private var accompanimentsContent: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            HStack(alignment: .center, spacing: 18) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("舞台已备好。\n下一首，你来唱。")
-                        .font(.system(size: 26, weight: .semibold)).lineSpacing(5)
-                    Text("\(viewModel.separatedSongs.count) 首伴奏 · 随时开唱")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "waveform").font(.system(size: 56, weight: .ultraLight))
-                    .foregroundStyle(StudioTheme.accent).accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 18) {
+            StudioHeroCard(eyebrow: "把舞台留给你", title: "下一首，\n你来唱。",
+                           subtitle: "\(viewModel.separatedSongs.count) 首伴奏 · \(viewModel.separatedSongs.filter { $0.lyrics != nil }.count) 首同步歌词就绪") {
+                Button {
+                    if viewModel.selectRandomAccompaniment(from: filteredAccompaniments) { isShowingStage = true }
+                } label: { Label("随机开唱", systemImage: "shuffle") }
+                    .buttonStyle(StudioHeroButtonStyle())
+                    .disabled(!viewModel.canManageLibrary || filteredAccompaniments.isEmpty)
+                    .accessibilityHint("从当前筛选的伴奏中选择一首，进入演唱页面")
+                    .accessibilityIdentifier("library.randomSing")
             }
-            .padding(24).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(red: 0.92, green: 0.91, blue: 0.86), in: RoundedRectangle(cornerRadius: 26))
             StudioSearchField(text: $accompanimentSearch, placeholder: "搜索已分离的歌曲")
-            HStack {
-                Text("准备开唱").font(.headline)
-                Spacer()
-                Text("伴奏 / 人声").font(.caption).foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterPill("全部", symbol: "waveform", selected: !favoriteAccompanimentsOnly && !lyricsReadyOnly) {
+                        favoriteAccompanimentsOnly = false; lyricsReadyOnly = false
+                    }
+                    filterPill("收藏", symbol: "heart", selected: favoriteAccompanimentsOnly) { favoriteAccompanimentsOnly.toggle() }
+                    filterPill("歌词就绪", symbol: "text.quote", selected: lyricsReadyOnly) { lyricsReadyOnly.toggle() }
+                        .accessibilityIdentifier("library.lyricsReady")
+                }
             }
-            let songs = viewModel.separatedSongs.filter { matches($0.title, query: accompanimentSearch) }
+            browserToolbar("准备开唱", count: filteredAccompaniments.count, sort: $accompanimentSort, identifier: "accompaniments")
             if viewModel.separatedSongs.isEmpty {
                 StudioEmptyState(symbol: "waveform.path", title: "你的专属伴奏，从这里开始",
-                                 message: "在歌曲库选择歌曲，分离人声与伴奏。\n完成后，就能在这里进入演唱。",
+                                 message: "在歌曲库分离人声与伴奏，\n完成后就能在这里进入演唱。",
                                  actionTitle: "去歌曲库", action: { selectedTab = .songs })
-            } else if songs.isEmpty {
-                StudioEmptyState(symbol: "magnifyingglass", title: "没有找到伴奏", message: "试试搜索其他歌曲名称。")
+            } else if filteredAccompaniments.isEmpty {
+                StudioEmptyState(symbol: "magnifyingglass", title: "没有符合条件的伴奏",
+                                 message: "试试其他关键词，或清除收藏与歌词筛选。",
+                                 actionTitle: "显示全部伴奏", action: {
+                    accompanimentSearch = ""; favoriteAccompanimentsOnly = false; lyricsReadyOnly = false
+                })
             } else {
-                LazyVStack(spacing: 0) { ForEach(songs) { song in songRow(song, separated: true) } }
+                LazyVStack(spacing: 10) { ForEach(filteredAccompaniments) { song in songRow(song, separated: true) } }
             }
         }
     }
 
     private var performancesContent: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            HStack(spacing: 20) {
-                Image(systemName: "mic.fill").font(.system(size: 30, weight: .light))
-                    .foregroundStyle(StudioTheme.accent).frame(width: 68, height: 80)
-                    .background(StudioTheme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 22))
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("每一次开口，都值得留下。")
-                        .font(.headline).fixedSize(horizontal: false, vertical: true)
-                    Text("\(viewModel.recording.performances.count) 个作品 · \(StudioTheme.duration(viewModel.recording.performances.reduce(0) { $0 + $1.duration }))")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 18) {
+            StudioHeroCard(eyebrow: "每一次开口，都值得留下", title: "让歌声，\n成为作品。",
+                           subtitle: "\(viewModel.recording.performances.count) 个作品 · 累计 \(StudioTheme.duration(viewModel.recording.performances.reduce(0) { $0 + $1.duration }))") {
+                Button { selectedTab = .accompaniments } label: { Label("录一首新歌", systemImage: "mic.badge.plus") }
+                    .buttonStyle(StudioHeroButtonStyle())
             }
             if viewModel.recording.state == .needsRecovery { recoveryCard }
             if viewModel.recording.state == .mixing {
@@ -264,46 +276,43 @@ struct ContentView: View {
                 Text(error).font(.caption).foregroundStyle(StudioTheme.accent)
             }
             StudioSearchField(text: $performanceSearch, placeholder: "搜索我的演唱")
-            HStack {
-                Text("我的作品").font(.headline)
-                Spacer()
-                Text("最近录制").font(.caption).foregroundStyle(.secondary)
-            }
-            let performances = viewModel.recording.performances.filter { matches($0.title, query: performanceSearch) }
+            browserToolbar("我的作品", count: filteredPerformances.count, sort: $performanceSort, identifier: "performances")
             if viewModel.recording.performances.isEmpty {
-                StudioEmptyState(symbol: "mic.badge.plus", title: "收藏你的第一段歌声",
-                                 message: "选择一首伴奏，进入沉浸式演唱。\n录制完成后，作品会自动保存在这里。",
-                                 actionTitle: "挑一首伴奏", action: { selectedTab = .accompaniments })
-            } else if performances.isEmpty {
-                StudioEmptyState(symbol: "magnifyingglass", title: "没有找到演唱", message: "试试搜索其他歌曲名称。")
+                StudioEmptyState(symbol: "mic.badge.plus", title: "留下你的第一段歌声",
+                                 message: "选一首伴奏，进入沉浸式演唱。\n录制完成后，作品会自动保存在这里。")
+            } else if filteredPerformances.isEmpty {
+                StudioEmptyState(symbol: "magnifyingglass", title: "没有找到演唱", message: "试试搜索其他作品名称。",
+                                 actionTitle: "显示全部作品", action: { performanceSearch = "" })
             } else {
-                LazyVStack(spacing: 0) { ForEach(performances) { performance in performanceRow(performance) } }
+                LazyVStack(spacing: 10) { ForEach(filteredPerformances) { performance in performanceRow(performance) } }
             }
         }
     }
 
     private func songRow(_ song: LibrarySong, separated: Bool) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 4) {
             Button {
                 viewModel.selectSong(song)
                 isShowingSong = true
             } label: {
-                HStack(spacing: 14) {
-                    RecordArtwork(title: song.title, artworkURL: viewModel.library.artworkURL(for: song))
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(song.title).font(.system(size: 16, weight: .semibold)).lineLimit(1)
-                            .foregroundStyle(StudioTheme.ink)
-                        if separated, let result = song.separation {
-                            Text("\(StudioTheme.duration(result.duration)) · \(song.lyricsStatusText)")
-                                .font(.caption).foregroundStyle(.secondary)
-                        } else {
-                            Text("\(song.subtitle) · \(song.lyricsStatusText)").font(.caption).foregroundStyle(.secondary)
-                            Text(song.separation == nil ? "待分离" : "伴奏已就绪")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(song.separation == nil ? .secondary : StudioTheme.accent)
-                        }
+                HStack(spacing: 12) {
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        RecordArtwork(title: song.title, size: 52, artworkURL: viewModel.library.artworkURL(for: song))
                     }
-                    Spacer(minLength: 0)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(song.title).font(.headline).lineLimit(2).foregroundStyle(StudioTheme.ink)
+                        if separated, let result = song.separation {
+                            Text("\(StudioTheme.duration(result.duration)) · \(song.lyrics == nil ? "可添加歌词" : "歌词就绪")")
+                                .font(.caption).foregroundStyle(.secondary)
+                            if song.isFavorite == true {
+                                Label("已收藏", systemImage: "heart.fill").font(.caption2).foregroundStyle(StudioTheme.accent)
+                            }
+                        } else {
+                            Text(song.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(song.separation == nil ? "待分离" : "伴奏已就绪")
+                                .font(.caption2.weight(.medium)).foregroundStyle(StudioTheme.accent)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
             if separated {
@@ -311,12 +320,24 @@ struct ContentView: View {
                     viewModel.selectSong(song)
                     isShowingStage = true
                 } label: {
-                    Image(systemName: "mic.fill").frame(width: 42, height: 42)
-                        .background(StudioTheme.accent.opacity(0.08), in: Circle())
+                    Image(systemName: "mic.fill").frame(width: 44, height: 44)
+                        .background(StudioTheme.blush, in: Circle())
                 }.accessibilityLabel("演唱\(song.title)")
+                    .foregroundStyle(StudioTheme.accent)
+            } else {
+                Button { viewModel.toggleFavorite(song) } label: {
+                    Image(systemName: song.isFavorite == true ? "heart.fill" : "heart")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("\(song.isFavorite == true ? "取消收藏" : "收藏")\(song.title)")
+                .accessibilityIdentifier("library.favorite.\(song.id)")
+                .foregroundStyle(StudioTheme.accent)
             }
             Menu {
                 Button("查看歌曲", systemImage: "music.note") { viewModel.selectSong(song); isShowingSong = true }
+                Button(song.isFavorite == true ? "取消收藏" : "收藏歌曲", systemImage: song.isFavorite == true ? "heart.slash" : "heart") {
+                    viewModel.toggleFavorite(song)
+                }
                 Button("重命名", systemImage: "pencil") { editedTitle = song.title; renamingSong = song }
                 if let result = viewModel.library.result(for: song) {
                     ShareLink(item: result.accompanimentURL) { Label("导出伴奏", systemImage: "square.and.arrow.up") }
@@ -326,41 +347,43 @@ struct ContentView: View {
                     deletesSeparationOnly = separated
                     deletingSong = song
                 }
-            } label: { Image(systemName: "ellipsis").frame(width: 32, height: 44).foregroundStyle(.secondary) }
+            } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(.secondary) }
                 .accessibilityLabel("\(song.title)的更多操作")
         }
         .disabled(!viewModel.canManageLibrary)
-        .padding(.vertical, 13)
-        .overlay(alignment: .bottom) { Rectangle().fill(.black.opacity(0.06)).frame(height: 0.5).padding(.leading, 74) }
+        .padding(12).studioCard()
     }
 
     private func performanceRow(_ performance: SingingPerformance) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 4) {
             Button { reviewingPerformance = performance } label: {
-                HStack(spacing: 14) {
-                    RecordArtwork(title: performance.title, isPerformance: true)
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(performance.title).font(.system(size: 16, weight: .semibold)).lineLimit(1)
+                HStack(spacing: 12) {
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        RecordArtwork(title: performance.title, size: 52, isPerformance: true)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(performance.title).font(.headline).lineLimit(2)
                         Text(performance.createdAt, format: .dateTime.month().day().hour().minute())
                             .font(.caption).foregroundStyle(.secondary)
                         Text("\(StudioTheme.duration(performance.duration)) · 回放与调整")
                             .font(.caption2).foregroundStyle(StudioTheme.accent)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "play.circle").font(.title2).foregroundStyle(StudioTheme.accent)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "play.circle.fill").font(.title2).foregroundStyle(StudioTheme.accent)
+                        .frame(width: 44, height: 44)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
             Menu {
                 Button("回放与调整", systemImage: "slider.horizontal.3") { reviewingPerformance = performance }
+                Button("重命名作品", systemImage: "pencil") { editedTitle = performance.title; renamingPerformance = performance }
                 ShareLink(item: viewModel.recording.store.mixURL(performance)) {
                     Label("导出演唱", systemImage: "square.and.arrow.up")
                 }
                 Button("删除演唱", systemImage: "trash", role: .destructive) { deletingPerformance = performance }
-            } label: { Image(systemName: "ellipsis").frame(width: 32, height: 44).foregroundStyle(.secondary) }
+            } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(.secondary) }
                 .accessibilityLabel("\(performance.title)演唱的更多操作")
         }
         .disabled(viewModel.recording.isBusy || viewModel.isProcessing || viewModel.isImporting)
-        .padding(.vertical, 13)
+        .padding(12).studioCard()
     }
 
     private var recoveryCard: some View {
@@ -389,22 +412,44 @@ struct ContentView: View {
     }
 
     private var filteredSongs: [LibrarySong] {
-        let songs = viewModel.songs.filter {
-            matches($0.title, query: songSearch) && (!onlyUnseparated || $0.separation == nil)
+        LibraryBrowser.songs(viewModel.songs, query: songSearch, favoritesOnly: favoriteSongsOnly,
+                             unseparatedOnly: onlyUnseparated, sort: songSort)
+    }
+
+    private var filteredAccompaniments: [LibrarySong] {
+        LibraryBrowser.songs(viewModel.songs, query: accompanimentSearch, favoritesOnly: favoriteAccompanimentsOnly,
+                             lyricsOnly: lyricsReadyOnly, sort: accompanimentSort, accompaniments: true)
+    }
+
+    private var filteredPerformances: [SingingPerformance] {
+        LibraryBrowser.performances(viewModel.recording.performances, query: performanceSearch, sort: performanceSort)
+    }
+
+    private func browserToolbar(_ title: String, count: Int, sort: Binding<LibrarySortOrder>, identifier: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("\(title) · \(count)").font(.headline).accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            Menu {
+                Picker("排序方式", selection: sort) {
+                    ForEach(LibrarySortOrder.allCases, id: \.self) { order in
+                        Label(order.label, systemImage: order.symbol).tag(order)
+                    }
+                }
+            } label: {
+                Label(sort.wrappedValue.label, systemImage: "arrow.up.arrow.down")
+                    .font(.caption.weight(.semibold)).padding(.vertical, 12)
+            }
+            .accessibilityLabel("\(title)排序，\(sort.wrappedValue.label)")
+            .accessibilityIdentifier("library.sort.\(identifier)")
         }
-        return sortByTitle ? songs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending } : songs
     }
 
-    private func matches(_ title: String, query: String) -> Bool {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return query.isEmpty || title.localizedStandardContains(query)
-    }
-
-    private func filterPill(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action).font(.caption.weight(.semibold))
-            .padding(.horizontal, 15).padding(.vertical, 10)
-            .foregroundStyle(selected ? .white : StudioTheme.ink)
-            .background(selected ? StudioTheme.ink : .clear, in: Capsule())
+    private func filterPill(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: symbol) }
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 15).frame(minHeight: 44)
+            .foregroundStyle(selected ? .white : StudioTheme.accent)
+            .background(selected ? StudioTheme.accent : StudioTheme.blush.opacity(0.65), in: Capsule())
             .accessibilityAddTraits(selected ? .isSelected : [])
     }
 

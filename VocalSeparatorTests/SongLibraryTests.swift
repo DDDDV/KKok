@@ -141,6 +141,97 @@ final class SongLibraryTests: XCTestCase {
         XCTAssertThrowsError(try library.load())
     }
 
+    func testFavoritesSurviveRelaunchRenameAndToggleFromStaleSnapshot() async throws {
+        let model = makeModel()
+        model.handleImport(.success(try AudioTestFixtures.url()))
+        try await wait(model)
+        model.startSeparation()
+        try await wait(model)
+        let song = try XCTUnwrap(model.selectedSong)
+        let audio = try Data(contentsOf: library.audio(for: song).url)
+        model.toggleFavorite(song)
+        XCTAssertEqual(makeModel().songs.first?.isFavorite, true)
+        model.renameSong(song, title: "收藏的歌曲")
+        XCTAssertEqual(model.selectedSong?.isFavorite, true)
+        XCTAssertEqual(model.selectedSong?.separation, song.separation)
+        model.toggleFavorite(song)
+        XCTAssertEqual(makeModel().songs.first?.isFavorite, false)
+        XCTAssertEqual(try Data(contentsOf: library.audio(for: song).url), audio)
+    }
+
+    func testLegacyFavoriteDefaultAndFailedSaveDoNotPublishChanges() async throws {
+        let model = makeModel()
+        model.handleImport(.success(try AudioTestFixtures.url()))
+        try await wait(model)
+        let song = try XCTUnwrap(model.songs.first)
+        let manifest = root.appendingPathComponent("library.json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as? [[String: Any]])
+        json[0].removeValue(forKey: "isFavorite")
+        try JSONSerialization.data(withJSONObject: json).write(to: manifest)
+        XCTAssertNil(try library.load().first?.isFavorite)
+        // A directory at the manifest path makes the atomic save fail.
+        try FileManager.default.removeItem(at: manifest)
+        try FileManager.default.createDirectory(at: manifest, withIntermediateDirectories: true)
+        model.toggleFavorite(song)
+        XCTAssertNil(model.songs.first?.isFavorite)
+        XCTAssertNotNil(model.alert)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: library.audio(for: song).url.path))
+    }
+
+    func testBrowserCombinesFavoriteSearchLyricsAndSeparationFilters() throws {
+        let audio = ImportedAudio(url: root.appendingPathComponent("song.wav"), displayName: "song", byteCount: 1)
+        var ready = LibrarySong(audio: audio, lyrics: ImportedLyrics(displayName: "歌词", lyrics: try LRCParser.parse("[00:00]开唱")))
+        ready.title = "Song 2"; ready.isFavorite = true
+        ready.separation = SavedSeparation(SeparationResult(sourceName: ready.title, vocalsURL: root.appendingPathComponent("a/v.wav"),
+            accompanimentURL: root.appendingPathComponent("a/a.wav"), duration: 2))
+        var plain = LibrarySong(audio: audio, lyrics: nil)
+        plain.title = "Song 10"; plain.isFavorite = true; plain.separation = ready.separation
+        plain.metadata = SongMetadata(artworkFileName: nil, embeddedLyrics: "没有时间轴的歌词", didReadMetadata: true, hasTimedLyrics: false)
+        var pending = LibrarySong(audio: audio, lyrics: ready.lyrics)
+        pending.title = "Song 1"
+        let songs = [plain, ready, pending]
+        XCTAssertEqual(LibraryBrowser.songs(songs, query: "  song \n", favoritesOnly: true, lyricsOnly: true,
+                                           accompaniments: true).map(\.id), [ready.id])
+        XCTAssertEqual(LibraryBrowser.songs(songs, unseparatedOnly: true).map(\.id), [pending.id])
+        XCTAssertEqual(LibraryBrowser.songs(songs, sort: .title).map(\.title), ["Song 1", "Song 2", "Song 10"])
+        XCTAssertEqual(LibraryBrowser.songs(songs, sort: .recent).map(\.id), [pending.id, plain.id, ready.id])
+        XCTAssertTrue(LibraryBrowser.songs(songs, query: "不存在").isEmpty)
+        XCTAssertTrue(LibraryBrowser.songs(songs, favoritesOnly: true, unseparatedOnly: true).isEmpty)
+    }
+
+    func testRandomAccompanimentHonorsVisibleCandidatesAndNeverStartsRecording() async throws {
+        let model = makeModel()
+        model.handleImport(.success(try AudioTestFixtures.url()))
+        try await wait(model)
+        model.startSeparation()
+        try await wait(model)
+        let ready = try XCTUnwrap(model.selectedSong)
+        model.handleImport(.success(try AudioTestFixtures.url("tone", "flac")))
+        try await wait(model)
+        let pending = try XCTUnwrap(model.selectedSong)
+        XCTAssertFalse(model.selectRandomAccompaniment(from: []))
+        XCTAssertFalse(model.selectRandomAccompaniment(from: [pending]))
+        XCTAssertEqual(model.selectedSongID, pending.id)
+        XCTAssertTrue(model.selectRandomAccompaniment(from: [ready]))
+        XCTAssertEqual(model.selectedSongID, ready.id)
+        XCTAssertEqual(model.result, library.result(for: ready))
+        XCTAssertEqual(model.recording.state, .idle)
+        model.deleteSong(ready, separationOnly: true)
+        XCTAssertFalse(model.selectRandomAccompaniment(from: [ready]), "Stale candidates cannot reopen deleted results")
+    }
+
+    func testPerformanceBrowserSortsAndSearchesRenamedTitles() {
+        var older = SingingPerformance(id: UUID(), title: "Take 2", createdAt: Date(timeIntervalSince1970: 10),
+            duration: 2, lyrics: nil, fileName: "a.wav")
+        let newer = SingingPerformance(id: UUID(), title: "Take 10", createdAt: Date(timeIntervalSince1970: 20),
+            duration: 2, lyrics: nil, fileName: "b.wav")
+        XCTAssertEqual(LibraryBrowser.performances([older, newer]).map(\.id), [newer.id, older.id])
+        XCTAssertEqual(LibraryBrowser.performances([newer, older], sort: .title).map(\.id), [older.id, newer.id])
+        older.title = "新的名称"
+        XCTAssertEqual(LibraryBrowser.performances([older, newer], query: " 新的 ").map(\.id), [older.id])
+        XCTAssertTrue(LibraryBrowser.performances([older, newer], query: "原名称").isEmpty)
+    }
+
     private func makeModel() -> SeparationViewModel {
         SeparationViewModel(engine: LibraryFixtureSeparator(), transcriber: LibraryFixtureTranscriber(),
                             recording: SingingRecordingController(store: PerformanceStore(root: root.appendingPathComponent("Takes"))),

@@ -53,7 +53,7 @@ struct KaraokePlayerView: View {
         GeometryReader { geometry in
             ZStack {
                 StudioTheme.stage.ignoresSafeArea()
-                RadialGradient(colors: [Color(red: 0.20, green: 0.34, blue: 0.31).opacity(0.75), .clear],
+                RadialGradient(colors: [Color(red: 0.39, green: 0.17, blue: 0.12).opacity(0.75), .clear],
                                center: .topTrailing, startRadius: 10, endRadius: 520).ignoresSafeArea()
                 RadialGradient(colors: [Color(red: 0.30, green: 0.17, blue: 0.19).opacity(0.38), .clear],
                                center: .bottomLeading, startRadius: 0, endRadius: 350).ignoresSafeArea()
@@ -63,7 +63,7 @@ struct KaraokePlayerView: View {
                         VStack(spacing: 9) {
                             Text(result.sourceName).font(.title2.bold()).multilineTextAlignment(.center).lineLimit(3)
                             HStack(spacing: 6) {
-                                Circle().fill(isRecording ? .red : StudioTheme.mint).frame(width: 5, height: 5)
+                                Circle().fill(isRecording ? .red : StudioTheme.cream).frame(width: 5, height: 5)
                                 Text(isRecording ? "正在录制 · 让歌声留在此刻" : "专属舞台 · 跟着音乐，唱给自己")
                                     .font(.caption).foregroundStyle(.white.opacity(0.55))
                             }
@@ -145,7 +145,7 @@ struct KaraokePlayerView: View {
                 .disabled(recording.isBusy && !isRecording)
                 Spacer()
                 if isRecording {
-                    ProgressView(value: Double(recording.level)).tint(StudioTheme.mint)
+                    ProgressView(value: Double(recording.level)).tint(StudioTheme.cream)
                         .frame(width: 60).accessibilityLabel("麦克风音量")
                     Text("REC").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.red)
                 } else {
@@ -182,7 +182,7 @@ struct KaraokePlayerView: View {
                     } label: {
                         ZStack {
                             Circle().stroke(.white.opacity(0.22), lineWidth: 1).frame(width: 90, height: 90)
-                            Circle().fill(isRecording ? Color(red: 0.82, green: 0.28, blue: 0.24) : StudioTheme.mint)
+                            Circle().fill(isRecording ? Color(red: 0.82, green: 0.28, blue: 0.24) : StudioTheme.cream)
                                 .frame(width: 76, height: 76)
                             Image(systemName: isRecording ? "stop.fill" : "mic.fill")
                                 .font(.system(size: 28, weight: .medium))

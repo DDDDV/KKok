@@ -266,6 +266,46 @@ final class PerformanceEditingTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: reopened.accompanimentURL(final.id)), originalBacking)
     }
 
+    func testRenamePersistsWithoutChangingAudioLyricsOrMixSettings() throws {
+        let (store, original) = try take()
+        let preview = root.appendingPathComponent("rename-preview.wav")
+        let render = try store.render(original, settings: .init(vocalVolume: 0.5, effect: .bathroom), to: preview)
+        let edited = try store.save(render, replacing: original)
+        let paths = [store.mixURL(edited), store.microphoneURL(edited.id), store.accompanimentURL(edited.id)]
+        let bytes = try paths.map { try Data(contentsOf: $0) }
+        let renamed = try store.rename(edited, title: "  周末试唱 🎵\n")
+        XCTAssertEqual(renamed.title, "周末试唱 🎵")
+        XCTAssertEqual(renamed.id, edited.id)
+        XCTAssertEqual(renamed.fileName, edited.fileName)
+        XCTAssertEqual(renamed.createdAt, edited.createdAt)
+        XCTAssertEqual(renamed.lyrics, edited.lyrics)
+        XCTAssertEqual(renamed.settings, edited.settings)
+        XCTAssertEqual(try PerformanceStore(root: store.root).performances(), [renamed])
+        XCTAssertEqual(try paths.map { try Data(contentsOf: $0) }, bytes)
+        let nextRender = try store.render(renamed, settings: .init(vocalVolume: 0.8), to: root.appendingPathComponent("next.wav"))
+        XCTAssertEqual(try store.save(nextRender, replacing: renamed).title, renamed.title)
+    }
+
+    func testBlankOrStaleRenameCannotOverwriteSavedWork() throws {
+        let (store, original) = try take()
+        let renamed = try store.rename(original, title: "新名字")
+        XCTAssertThrowsError(try store.rename(renamed, title: " \n "))
+        XCTAssertThrowsError(try store.rename(original, title: "旧版本覆盖"))
+        XCTAssertEqual(try store.performances(), [renamed])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.mixURL(original).path))
+    }
+
+    @MainActor
+    func testControllerRenameRefreshesLibraryAndSearchAcrossRelaunch() throws {
+        let (store, original) = try take()
+        let recording = SingingRecordingController(store: store)
+        recording.rename(original, title: "我的新作品")
+        XCTAssertNil(recording.errorText)
+        XCTAssertEqual(recording.performances.first?.title, "我的新作品")
+        XCTAssertEqual(SingingRecordingController(store: store).performances, recording.performances)
+        XCTAssertEqual(LibraryBrowser.performances(recording.performances, query: "新作品").count, 1)
+    }
+
     func testLegacyManifestWithoutSettingsStillLoadsAndMissingBackingBlocksOnlyEditing() throws {
         let (store, initial) = try take()
         let manifest = store.directory(initial.id).appendingPathComponent("performance.json")

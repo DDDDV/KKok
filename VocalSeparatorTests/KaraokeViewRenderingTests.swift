@@ -141,6 +141,7 @@ final class KaraokeViewRenderingTests: XCTestCase {
             let audio = try AudioImportStore.persist(AudioTestFixtures.url(), root: root)
             var song = LibrarySong(audio: audio, lyrics: index == 0 ? lyrics : nil)
             song.title = title
+            song.isFavorite = index == 0
             if index < 3 {
                 let folder = library.separationsDirectory.appendingPathComponent(UUID().uuidString)
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -172,6 +173,11 @@ final class KaraokeViewRenderingTests: XCTestCase {
         try await attach(ContentView(viewModel: model, initialTab: .performances), name: "Studio-03-performances")
         try await attach(SongDetailView(viewModel: model, openStage: {}), name: "Studio-04-song-detail")
         try await attach(ContentView(viewModel: model).environment(\.dynamicTypeSize, .xxxLarge), name: "Studio-large-type-library")
+        for (tab, name) in [(ContentView.LibraryTab.songs, "songs"), (.accompaniments, "accompaniments"), (.performances, "performances")] {
+            try await attach(ContentView(viewModel: model, initialTab: tab), name: "Studio-compact-\(name)", size: CGSize(width: 375, height: 667))
+            try await attach(ContentView(viewModel: model, initialTab: tab).environment(\.dynamicTypeSize, .accessibility2),
+                             name: "Studio-accessibility-\(name)", size: CGSize(width: 375, height: 667))
+        }
     }
 
     @MainActor

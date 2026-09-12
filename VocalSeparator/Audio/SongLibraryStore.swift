@@ -10,6 +10,8 @@ struct LibrarySong: Codable, Identifiable, Equatable, Sendable {
     var separation: SavedSeparation?
     var transcript: VocalTranscript?
     var metadata: SongMetadata?
+    // Optional for libraries saved before favorites were introduced.
+    var isFavorite: Bool?
 
     init(audio: ImportedAudio, lyrics: ImportedLyrics?) {
         id = UUID()
@@ -32,6 +34,51 @@ struct LibrarySong: Codable, Identifiable, Equatable, Sendable {
         }
         guard let metadata else { return "歌词待检测" }
         return metadata.didReadMetadata ? "未发现内嵌歌词" : "歌词读取未完成"
+    }
+}
+
+enum LibrarySortOrder: String, CaseIterable {
+    case recent, title
+
+    var label: String { self == .recent ? "最近添加" : "名称排序" }
+    var symbol: String { self == .recent ? "clock" : "textformat.abc" }
+}
+
+/// Shared by the library lists and random accompaniment selection.
+struct LibraryBrowser {
+    static func songs(_ songs: [LibrarySong], query: String = "", favoritesOnly: Bool = false,
+                      unseparatedOnly: Bool = false, lyricsOnly: Bool = false,
+                      sort: LibrarySortOrder = .recent, accompaniments: Bool = false) -> [LibrarySong] {
+        songs.filter {
+            matches($0.title, query: query) && (!favoritesOnly || $0.isFavorite == true)
+                && (!unseparatedOnly || $0.separation == nil)
+                && (!lyricsOnly || $0.lyrics != nil)
+                && (!accompaniments || $0.separation != nil)
+        }.sorted {
+            if sort == .title {
+                let order = $0.title.localizedStandardCompare($1.title)
+                if order != .orderedSame { return order == .orderedAscending }
+            }
+            let lhs = accompaniments ? ($0.separation?.createdAt ?? $0.importedAt) : $0.importedAt
+            let rhs = accompaniments ? ($1.separation?.createdAt ?? $1.importedAt) : $1.importedAt
+            return lhs == rhs ? $0.id.uuidString < $1.id.uuidString : lhs > rhs
+        }
+    }
+
+    static func performances(_ performances: [SingingPerformance], query: String = "",
+                             sort: LibrarySortOrder = .recent) -> [SingingPerformance] {
+        performances.filter { matches($0.title, query: query) }.sorted {
+            if sort == .title {
+                let order = $0.title.localizedStandardCompare($1.title)
+                if order != .orderedSame { return order == .orderedAscending }
+            }
+            return $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString : $0.createdAt > $1.createdAt
+        }
+    }
+
+    private static func matches(_ title: String, query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty || title.localizedStandardContains(query)
     }
 }
 
