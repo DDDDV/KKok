@@ -1,4 +1,6 @@
 name: VocalSeparatorPrototype
+fileGroups:
+  - Config
 
 options:
   developmentLanguage: en
@@ -23,6 +25,10 @@ targets:
   VocalSeparator:
     type: application
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.InAppPurchase:
+          enabled: 1
     preBuildScripts:
       - name: Verify bundled LAME corresponding source
         script: /usr/bin/python3 "$SRCROOT/Scripts/package-lame-source.py" --check
@@ -115,6 +121,8 @@ targets:
     platform: iOS
     sources:
       - path: VocalSeparatorTests
+      - path: Config/ExportLifetime.storekit
+        buildPhase: resources
     dependencies:
       - target: VocalSeparator
     settings:
@@ -123,3 +131,15 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: true
         DEVELOPMENT_TEAM: 947X8JA62C
+
+schemes:
+  VocalSeparator-StoreKit:
+    build:
+      targets:
+        VocalSeparator: all
+    run:
+      config: Debug
+      storeKitConfiguration: Config/ExportLifetime.storekit
+    test:
+      targets:
+        - VocalSeparatorTests

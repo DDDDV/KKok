@@ -1,0 +1,27 @@
+{
+  "identifier": "92D378C1",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "0.99",
+      "familyShareable": false,
+      "internalID": "1",
+      "localizations": [
+        { "description": "One purchase unlocks all audio exports and transcription sharing.", "displayName": "Lifetime Export", "locale": "en_US" },
+        { "description": "一次购买，永久解锁全部音频导出和转写分享。", "displayName": "永久解锁导出", "locale": "zh_Hans" }
+      ],
+      "productID": "com.example.VocalSeparatorPrototype.export.lifetime",
+      "referenceName": "Lifetime Export - Local Test Price Only",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_askToBuyEnabled": false,
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [],
+  "version": { "major": 3, "minor": 0 }
+}

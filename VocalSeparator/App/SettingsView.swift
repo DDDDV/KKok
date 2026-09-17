@@ -6,6 +6,8 @@ struct SettingsView: View {
     @AppStorage(PitchScoringSettings.enabledKey) private var scoringEnabled = true
     @AppStorage(PitchScoringSettings.modeKey) private var storedScoringMode = PitchScoringMode.strict.rawValue
     @State private var showingAbout = false
+    @State private var showingPurchase = false
+    @ObservedObject private var purchases = ExportPurchaseController.shared
 
     private var selectedFormat: AudioExportFormat { AudioExportFormat(rawValue: storedFormat) ?? .wav }
     private var scoringMode: PitchScoringMode { PitchScoringMode(rawValue: storedScoringMode) ?? .strict }
@@ -13,6 +15,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section(String(localized: "Lifetime Export")) {
+                    Button { showingPurchase = true } label: {
+                        Label(purchases.isUnlocked ? String(localized: "Lifetime Export Unlocked") : String(localized: "Unlock Lifetime Export"),
+                              systemImage: purchases.isUnlocked ? "checkmark.seal.fill" : "lock.open")
+                    }
+                    .accessibilityIdentifier("settings.purchase")
+                    Text(String(localized: "One purchase. Unlimited exports. No subscription or recurring fees."))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
                 Section {
                     Toggle(String(localized: "Enable Pitch Scoring"), isOn: $scoringEnabled)
                         .accessibilityIdentifier("settings.pitchScoringEnabled")
@@ -41,6 +52,12 @@ struct SettingsView: View {
                 } header: { Text(String(localized: "Audio Export")) } footer: {
                     Text(String(localized: "Applies to backing tracks, vocals, performances, and raw recordings. Audio is converted only when exported. Your local originals and saved adjustments stay the same."))
                 }
+                Section(String(localized: "Privacy and Terms")) {
+                    Link(String(localized: "Privacy Policy"), destination: AppLegalLinks.privacy)
+                        .accessibilityIdentifier("settings.privacyPolicy")
+                    Link(String(localized: "Terms of Service"), destination: AppLegalLinks.terms)
+                        .accessibilityIdentifier("settings.termsOfService")
+                }
                 Section(String(localized: "About")) {
                     Button(String(localized: "About and Licenses")) { showingAbout = true }
                     NavigationLink(String(localized: "MP3 Encoding and Open Source License")) { LAMELicenseView() }
@@ -49,6 +66,7 @@ struct SettingsView: View {
             .navigationTitle(String(localized: "Settings"))
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(String(localized: "Done")) { dismiss() } } }
             .sheet(isPresented: $showingAbout) { LegalView() }
+            .sheet(isPresented: $showingPurchase) { ExportPurchaseView() }
         }
         .tint(StudioTheme.accent)
     }

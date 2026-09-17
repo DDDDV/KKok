@@ -12,6 +12,7 @@ struct TranscriptResultCard: View {
     let requestTranscription: () -> Void
     let retry: () -> Void
     let cancel: () -> Void
+    @State private var textExport: TextExportRequest?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -53,18 +54,19 @@ struct TranscriptResultCard: View {
                 Text(transcript.text)
                     .font(.body)
                     .foregroundStyle(.primary)
-                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 12) {
                     Button {
-                        UIPasteboard.general.string = transcript.text
+                        textExport = TextExportRequest(text: transcript.text, copyOnly: true)
                     } label: {
                         Label(String(localized: "Copy Text"), systemImage: "doc.on.doc")
                     }
                     .buttonStyle(SecondaryActionButtonStyle())
 
-                    ShareLink(item: transcript.text) {
+                    Button {
+                        textExport = TextExportRequest(text: transcript.text, copyOnly: false)
+                    } label: {
                         Label(String(localized: "Share Text"), systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(SecondaryActionButtonStyle())
@@ -95,12 +97,55 @@ struct TranscriptResultCard: View {
         }
         .padding(14)
         .studioCard()
+        .sheet(item: $textExport) { request in
+            ExportAccessGate { TextExportSheet(request: request) }
+        }
     }
 
     private var languageName: String? {
         guard let code = transcript?.languageCode else { return nil }
         return Locale.autoupdatingCurrent.localizedString(forLanguageCode: code)
             ?? code.uppercased()
+    }
+}
+
+private struct TextExportRequest: Identifiable {
+    let id = UUID()
+    let text: String
+    let copyOnly: Bool
+}
+
+private struct TextExportSheet: View {
+    let request: TextExportRequest
+    @Environment(\.dismiss) private var dismiss
+    @State private var errorText: String?
+
+    var body: some View {
+        if request.copyOnly {
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Text(request.text)
+                        Button(String(localized: "Copy Text")) {
+                            Task {
+                                do {
+                                    try await ExportPurchaseController.shared.requireExportAccess()
+                                    UIPasteboard.general.string = request.text
+                                    dismiss()
+                                } catch { errorText = error.localizedDescription }
+                            }
+                        }.buttonStyle(PrimaryActionButtonStyle())
+                        if let errorText { Text(errorText).foregroundStyle(.secondary) }
+                    }.padding(24)
+                }
+                .navigationTitle(String(localized: "Copy Text"))
+                .toolbar { ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "Cancel")) { dismiss() }
+                } }
+            }
+        } else {
+            ExportActivityView(items: [request.text]) { dismiss() }
+        }
     }
 }
 
@@ -149,4 +194,3 @@ struct LegalView: View {
         }
     }
 }
-

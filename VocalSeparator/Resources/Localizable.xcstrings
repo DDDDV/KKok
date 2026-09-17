@@ -498,6 +498,23 @@
         }
       }
     },
+    "All formats: WAV, MP3, AAC, and ALAC": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All formats: WAV, MP3, AAC, and ALAC"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持全部格式：WAV、MP3、AAC 和 ALAC"
+          }
+        }
+      }
+    },
     "An unfinished recording was found. You can retry saving the performance.": {
       "extractionState": "manual",
       "localizations": {
@@ -1008,6 +1025,23 @@
         }
       }
     },
+    "Checking purchase…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking purchase…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查购买状态…"
+          }
+        }
+      }
+    },
     "Checking the local transcription model…": {
       "extractionState": "manual",
       "localizations": {
@@ -1123,6 +1157,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "清除搜索"
+          }
+        }
+      }
+    },
+    "Close": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
           }
         }
       }
@@ -1841,6 +1892,23 @@
         }
       }
     },
+    "Export backing tracks, vocals, original tracks, and recordings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export backing tracks, vocals, original tracks, and recordings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出伴奏、人声、原曲和演唱录音"
+          }
+        }
+      }
+    },
     "Failed to delete recording: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -2351,6 +2419,23 @@
         }
       }
     },
+    "Keep Every Performance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Every Performance"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留住每一次好声音"
+          }
+        }
+      }
+    },
     "Keep Singing": {
       "extractionState": "manual",
       "localizations": {
@@ -2488,6 +2573,40 @@
         }
       }
     },
+    "Lifetime Export": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lifetime Export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "永久导出"
+          }
+        }
+      }
+    },
+    "Lifetime Export Unlocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lifetime Export Unlocked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已永久解锁导出"
+          }
+        }
+      }
+    },
     "Line by line": {
       "extractionState": "manual",
       "localizations": {
@@ -2552,6 +2671,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "分离前，先听一听"
+          }
+        }
+      }
+    },
+    "Loading price…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading price…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载价格…"
           }
         }
       }
@@ -3015,6 +3151,23 @@
         }
       }
     },
+    "No lifetime export purchase was found for this Apple Account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No lifetime export purchase was found for this Apple Account."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到此 Apple 账户的永久导出购买记录。"
+          }
+        }
+      }
+    },
     "No matching backing tracks": {
       "extractionState": "manual",
       "localizations": {
@@ -3249,6 +3402,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "好"
+          }
+        }
+      }
+    },
+    "One purchase. Unlimited exports. No subscription or recurring fees.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One purchase. Unlimited exports. No subscription or recurring fees."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一次购买，无限导出。无需订阅，后续无需付费。"
           }
         }
       }
@@ -3882,6 +4052,40 @@
         }
       }
     },
+    "Privacy Policy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私政策"
+          }
+        }
+      }
+    },
+    "Privacy and Terms": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy and Terms"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私与条款"
+          }
+        }
+      }
+    },
     "Processed on this device and added to Backing Tracks when finished.\nKeep the app open while processing.": {
       "extractionState": "manual",
       "localizations": {
@@ -3912,6 +4116,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "处理未完成"
+          }
+        }
+      }
+    },
+    "Purchase awaiting approval. Export will unlock automatically when Apple confirms it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase awaiting approval. Export will unlock automatically when Apple confirms it."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买正在等待批准。Apple 确认后将自动解锁导出。"
           }
         }
       }
@@ -4172,6 +4393,23 @@
         }
       }
     },
+    "Reload Price": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload Price"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新加载价格"
+          }
+        }
+      }
+    },
     "Remove": {
       "extractionState": "manual",
       "localizations": {
@@ -4372,6 +4610,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "恢复原声"
+          }
+        }
+      }
+    },
+    "Restore Purchases": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Purchases"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复购买"
           }
         }
       }
@@ -4870,6 +5125,23 @@
         }
       }
     },
+    "Share and copy vocal transcriptions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share and copy vocal transcriptions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享和复制人声转写文字"
+          }
+        }
+      }
+    },
     "Show All Backing Tracks": {
       "extractionState": "manual",
       "localizations": {
@@ -5346,6 +5618,23 @@
         }
       }
     },
+    "Terms of Service": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms of Service"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户协议"
+          }
+        }
+      }
+    },
     "The HTDemucs Core ML model was not found. Run Scripts/bootstrap.sh first.": {
       "extractionState": "manual",
       "localizations": {
@@ -5737,6 +6026,23 @@
         }
       }
     },
+    "The purchase is unavailable. Please check your connection and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purchase is unavailable. Please check your connection and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时无法购买，请检查网络连接后重试。"
+          }
+        }
+      }
+    },
     "The recording contains audio data that cannot be processed.": {
       "extractionState": "manual",
       "localizations": {
@@ -6108,6 +6414,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors."
+          }
+        }
+      }
+    },
+    "This purchase could not be verified. Please try Restore Purchases.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This purchase could not be verified. Please try Restore Purchases."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法验证此购买，请尝试恢复购买。"
           }
         }
       }
@@ -6533,6 +6856,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "未压缩，保留内部 WAV 的采样率和精度，文件较大。"
+          }
+        }
+      }
+    },
+    "Unlock Lifetime Export": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock Lifetime Export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "永久解锁导出"
+          }
+        }
+      }
+    },
+    "Unlock Lifetime Export — %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock Lifetime Export — %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "永久解锁导出 — %@"
+          }
+        }
+      }
+    },
+    "Unlock lifetime export to export or share your audio and transcriptions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock lifetime export to export or share your audio and transcriptions."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "永久解锁导出后，即可导出或分享音频和转写文字。"
+          }
+        }
+      }
+    },
+    "Unlock once to export and share. You can restore this purchase on devices using the same Apple Account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock once to export and share. You can restore this purchase on devices using the same Apple Account."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一次解锁，即可导出和分享。使用同一 Apple 账户的设备可以恢复此购买。"
           }
         }
       }
@@ -6992,6 +7383,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "演唱已保存在本机，可在“我的演唱”中回放或导出。"
+          }
+        }
+      }
+    },
+    "Your purchase is active. All exports and sharing are unlocked.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your purchase is active. All exports and sharing are unlocked."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买已生效，全部导出和分享功能均已解锁。"
           }
         }
       }

@@ -8,6 +8,7 @@ struct SongDetailView: View {
     @State private var isConfirmingTranscription = false
     @State private var isShowingTranscript = false
     @State private var exportRequest: AudioExportRequest?
+    @ObservedObject private var purchases = ExportPurchaseController.shared
 
     var body: some View {
         NavigationStack {
@@ -121,8 +122,11 @@ struct SongDetailView: View {
             }
             if let text = viewModel.selectedSong?.metadata?.embeddedLyrics {
                 DisclosureGroup(String(localized: "View Embedded Lyrics")) {
-                    Text(text).font(.subheadline).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                    Group {
+                        if purchases.isUnlocked { Text(text).textSelection(.enabled) }
+                        else { Text(text) }
+                    }
+                    .font(.subheadline).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                 }.font(.subheadline)
             }
             if viewModel.importedLyrics == nil {

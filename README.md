@@ -28,7 +28,28 @@ HTDemucs Core ML 分离人声与伴奏，跟随伴奏和歌词录制演唱，再
 内部保存的分离结果为 44.1 kHz、双声道 Float32 WAV；导出格式可在设置中选择。
 删除分离结果保留原曲；删除歌曲同时删除对应分离结果。两种操作都保留已保存的演唱及成绩。
 
+## 隐私清单
+
+`VocalSeparator/Resources/PrivacyInfo.xcprivacy` 由 `project.yml` 的 Resources 规则加入
+App 的 Copy Bundle Resources，生成的 iOS 包中应位于 `VocalSeparator.app/PrivacyInfo.xcprivacy`。
+当前声明不跟踪用户、不收集用户数据，并按实际用途申报以下 Required Reason API：
+
+| API 类别 | 理由 | 当前用途 |
+| --- | --- | --- |
+| UserDefaults | `CA92.1` | 保存本 App 的列表排序、评分开关／模式和导出格式 |
+| FileTimestamp | `C617.1` | 读取 App 容器内分离音频的修改时间，验证音高参考缓存 |
+| SystemBootTime | `35F9.1` | 用 `mach_absolute_time` 计算录音经过时间、安排音轨同步启动 |
+
+理由以 [Apple Required Reason API 文档](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)
+为准；增加 API 用途、数据收集或第三方 SDK 时需重新核对。发布前应检查实际 Release 包中的清单，
+不能只检查源码。隐私清单供系统和 App Store 工具读取，不是“关于”页面的隐私政策，
+也不替代 App Store Connect 的 App 隐私信息。
+
 ## 录制、调整、回放与导出演唱
+
+音频导出、分享及转写文字复制／分享需要一次性内购解锁；已购用户可恢复购买，后续无需重复付费。
+购买页包含中英文隐私政策与使用条款链接。商品配置、本地 StoreKit 测试和正式商店验收见
+[内购接入说明](docs/in-app-purchases.md)。
 
 1. 从伴奏库或歌曲详情点击“进入演唱”，进入全屏舞台后点击麦克风开始录制。
    首次使用会请求麦克风权限；未授权不会创建录音。

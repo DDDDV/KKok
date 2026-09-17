@@ -4,6 +4,18 @@ import UIKit
 /// Owned by the screen, not a transient Menu row. The request snapshots the format on tap.
 struct AudioExportSheet: View {
     let request: AudioExportRequest
+    @ObservedObject var purchases: ExportPurchaseController = .shared
+
+    var body: some View {
+        ExportAccessGate(purchases: purchases) {
+            PreparedAudioExportSheet(request: request, purchases: purchases)
+        }
+    }
+}
+
+private struct PreparedAudioExportSheet: View {
+    let request: AudioExportRequest
+    let purchases: ExportPurchaseController
     @Environment(\.dismiss) private var dismiss
     @State private var result: ExportedAudio?
     @State private var errorText: String?
@@ -12,7 +24,7 @@ struct AudioExportSheet: View {
     var body: some View {
         Group {
             if let result {
-                AudioActivityView(url: result.url) { dismiss() }
+                ExportActivityView(items: [result.url]) { dismiss() }
             } else {
                 NavigationStack {
                     VStack(spacing: 20) {
@@ -35,7 +47,7 @@ struct AudioExportSheet: View {
         }
         .task(id: retryID) {
             do {
-                let exported = try await AudioExporter().exportAsync(request)
+                let exported = try await AuthorizedAudioExporter(purchases: purchases).prepare(request)
                 if Task.isCancelled { exported.remove(); return }
                 result = exported
             } catch is CancellationError {
@@ -46,11 +58,11 @@ struct AudioExportSheet: View {
     }
 }
 
-private struct AudioActivityView: UIViewControllerRepresentable {
-    let url: URL
+struct ExportActivityView: UIViewControllerRepresentable {
+    let items: [Any]
     let onComplete: () -> Void
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
         controller.completionWithItemsHandler = { _, _, _, _ in onComplete() }
         return controller
     }
