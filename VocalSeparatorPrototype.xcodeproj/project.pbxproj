@@ -200,7 +200,7 @@
 		1CF2BBA3B84021FE6B6499AD /* SongLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongLibraryStore.swift; sourceTree = "<group>"; };
 		1E07B21FA217B4614669EE7D /* vbrquantize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vbrquantize.h; sourceTree = "<group>"; };
 		2173F173143692D62F924FD8 /* SingingAudioRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingingAudioRoute.swift; sourceTree = "<group>"; };
-		23B331675D900EA71D6725F9 /* tone.flac */ = {isa = PBXFileReference; path = tone.flac; sourceTree = "<group>"; };
+		23B331675D900EA71D6725F9 /* tone.flac */ = {isa = PBXFileReference; lastKnownFileType = file; path = tone.flac; sourceTree = "<group>"; };
 		24427550421786807F3EF8CC /* AudioImportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioImportStore.swift; sourceTree = "<group>"; };
 		25FCB79426EFA1B2FA11D681 /* KaraokePitchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokePitchView.swift; sourceTree = "<group>"; };
 		27644D301478D3C3C9E2F9AB /* LAME.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LAME.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -240,14 +240,14 @@
 		62F775F2671CE82C1E7423CD /* takehiro.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = takehiro.c; sourceTree = "<group>"; };
 		62FD52209484E8AF37A8A4E3 /* NativeAudioDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAudioDecoder.swift; sourceTree = "<group>"; };
 		63270D7ED7746C2685004BAE /* util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = util.c; sourceTree = "<group>"; };
-		663A7369A8E82897CE30A874 /* ExportLifetime.storekit */ = {isa = PBXFileReference; path = ExportLifetime.storekit; sourceTree = "<group>"; };
+		663A7369A8E82897CE30A874 /* ExportLifetime.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = ExportLifetime.storekit; sourceTree = "<group>"; };
 		693D9F2118C39F3303CA9329 /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
 		6BCB0EF1E6D71E025FD9754C /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
 		6BE963939C87F3CDE385BF5C /* VbrTagCrc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VbrTagCrc.h; sourceTree = "<group>"; };
 		6D6D92FB8B71DDB7D267F53E /* RealKaraokePipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealKaraokePipelineTests.swift; sourceTree = "<group>"; };
 		6E092FBBA10896E1C91D2B3C /* quantize_pvt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quantize_pvt.h; sourceTree = "<group>"; };
 		73169A6CEF11007CB1C999BC /* KaraokeCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokeCapture.swift; sourceTree = "<group>"; };
-		75F9747486C53F5EC41FC853 /* tone.aac */ = {isa = PBXFileReference; path = tone.aac; sourceTree = "<group>"; };
+		75F9747486C53F5EC41FC853 /* tone.aac */ = {isa = PBXFileReference; lastKnownFileType = file; path = tone.aac; sourceTree = "<group>"; };
 		76655BECB7D834A857E36C81 /* lame.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lame.h; sourceTree = "<group>"; };
 		7675F64DF99343660BAC3D78 /* EmbeddedLyricsExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedLyricsExtractor.swift; sourceTree = "<group>"; };
 		797341B97870513018C856D7 /* AudioPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipeline.swift; sourceTree = "<group>"; };
@@ -258,7 +258,7 @@
 		7F75EB8834A4AE547C68420C /* AudioExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioExporter.swift; sourceTree = "<group>"; };
 		7FE036F21E5FA8CF1BC301F1 /* PerformanceReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceReviewView.swift; sourceTree = "<group>"; };
 		811F998926565E21C372B8CC /* quantize_pvt.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quantize_pvt.c; sourceTree = "<group>"; };
-		812E11385A4C413BE0B40650 /* tone.caf */ = {isa = PBXFileReference; path = tone.caf; sourceTree = "<group>"; };
+		812E11385A4C413BE0B40650 /* tone.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = tone.caf; sourceTree = "<group>"; };
 		85ADB1AF4820EB1E1A114279 /* PitchScoringSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchScoringSettingsTests.swift; sourceTree = "<group>"; };
 		89FA9CFDEDDDE6477F04467C /* gain_analysis.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gain_analysis.c; sourceTree = "<group>"; };
 		8E6CEB998571372BE49632F0 /* tone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = tone.wav; sourceTree = "<group>"; };
@@ -266,15 +266,15 @@
 		964BF3931818DB00218D621A /* SynchronizedStemPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedStemPlayer.swift; sourceTree = "<group>"; };
 		9B16CE9D3F365D5AC1617F2F /* tone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = tone.mp3; sourceTree = "<group>"; };
 		9E8978D4039F3D5FB1677B7A /* bitstream.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bitstream.h; sourceTree = "<group>"; };
-		A124CD973ABD616DC4780313 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A124CD973ABD616DC4780313 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A398A1C7E7B0826ADC54F5F1 /* LibrarySupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySupportingViews.swift; sourceTree = "<group>"; };
 		A450D33D39DC64163F871E6C /* AuthorizedAudioExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorizedAudioExporter.swift; sourceTree = "<group>"; };
 		A798AD0FE5BCD52DE973ABF3 /* PerformanceEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceEditingTests.swift; sourceTree = "<group>"; };
 		A8DCD65D1DFE4F4C6822BFBF /* RealPipelineIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealPipelineIntegrationTests.swift; sourceTree = "<group>"; };
 		A9689D1D0B978B002C7C4BDF /* SingingRecordingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingingRecordingTests.swift; sourceTree = "<group>"; };
 		AC77ED404B4BC0592E2AA9F1 /* TranscriptionModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionModelManager.swift; sourceTree = "<group>"; };
-		AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */ = {isa = PBXFileReference; path = HTDemucs_CoreML_FP16.mlpackage; sourceTree = "<group>"; };
-		B2AEA14E7038B377BE249468 /* alac.m4a */ = {isa = PBXFileReference; path = alac.m4a; sourceTree = "<group>"; };
+		AEB0AC40472CAA25A1D9B78A /* HTDemucs_CoreML_FP16.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = HTDemucs_CoreML_FP16.mlpackage; sourceTree = "<group>"; };
+		B2AEA14E7038B377BE249468 /* alac.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = alac.m4a; sourceTree = "<group>"; };
 		B648949AFE793D4245459272 /* quantize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quantize.h; sourceTree = "<group>"; };
 		B8D1E265288D3130CB4691A5 /* StemSeparationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StemSeparationEngine.swift; sourceTree = "<group>"; };
 		BA419EF95842C58A9692C0EE /* tone.au */ = {isa = PBXFileReference; lastKnownFileType = audio.au; path = tone.au; sourceTree = "<group>"; };
@@ -296,7 +296,7 @@
 		D48003230AB0656D4C84FDDB /* LAME-4.0-source.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = "LAME-4.0-source.zip"; sourceTree = "<group>"; };
 		D697B4376475D558A6B2B3C2 /* encoder.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = encoder.c; sourceTree = "<group>"; };
 		D81A0F16D17E73B34A22E2A1 /* psymodel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = psymodel.c; sourceTree = "<group>"; };
-		D90C3492C856C1B3BC4B2635 /* depcomp */ = {isa = PBXFileReference; path = depcomp; sourceTree = "<group>"; };
+		D90C3492C856C1B3BC4B2635 /* depcomp */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = depcomp; sourceTree = "<group>"; };
 		DFB1BC12FFC21070A89AE291 /* l3side.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = l3side.h; sourceTree = "<group>"; };
 		DFD1BA2364CFF62D1CE1737C /* set_get.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = set_get.h; sourceTree = "<group>"; };
 		E41467C0774A8FC73ED59441 /* presets.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = presets.c; sourceTree = "<group>"; };
@@ -304,6 +304,7 @@
 		E69728F1D0EE174622596091 /* PitchScoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchScoringTests.swift; sourceTree = "<group>"; };
 		E6BD0F341DAE7D57764F50AB /* machine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = machine.h; sourceTree = "<group>"; };
 		E8958E11556744792D880AE4 /* HTDemucsModelRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsModelRunner.swift; sourceTree = "<group>"; };
+		E9170790305C3F7600399A00 /* Sing Freely.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Sing Freely.storekit"; sourceTree = "<group>"; };
 		EE80444CDFFCF32598130B31 /* SongLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongLibraryTests.swift; sourceTree = "<group>"; };
 		EF17D1154DF72245C7971A1E /* HTDemucsContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTDemucsContract.swift; sourceTree = "<group>"; };
 		F03CCD73B835272F1CB3D385 /* PerformancePreviewPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformancePreviewPlayer.swift; sourceTree = "<group>"; };
@@ -311,7 +312,7 @@
 		F1B4BEC62C0366FE85744042 /* StudioDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioDesign.swift; sourceTree = "<group>"; };
 		F1C3D7BECC0DFAE57EC8BDAC /* ExportPurchaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPurchaseTests.swift; sourceTree = "<group>"; };
 		F2C8D561E99B885F6DE9F184 /* SavedMessageLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedMessageLocalization.swift; sourceTree = "<group>"; };
-		F45B93C2B342906E5C67653B /* tone.m4a */ = {isa = PBXFileReference; path = tone.m4a; sourceTree = "<group>"; };
+		F45B93C2B342906E5C67653B /* tone.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = tone.m4a; sourceTree = "<group>"; };
 		F7F7DAE3441FC9A8D69B360C /* ExportPurchaseController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPurchaseController.swift; sourceTree = "<group>"; };
 		FD58C67AEB0FE109C22AA601 /* AudioExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioExportSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -350,6 +351,7 @@
 		13435F59B60AA36F3F4D4E09 = {
 			isa = PBXGroup;
 			children = (
+				E9170790305C3F7600399A00 /* Sing Freely.storekit */,
 				8AAFF504E15E62142A3CB0DD /* Config */,
 				B0E902EEC9924BAF3336A97F /* ThirdParty */,
 				7A6676DC47F3CED846F30813 /* VocalSeparator */,
@@ -1151,7 +1153,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototype;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.easykaraoke.singfreely;
 				PRODUCT_NAME = VocalSeparator;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -1248,7 +1250,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.VocalSeparatorPrototype;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.easykaraoke.singfreely;
 				PRODUCT_NAME = VocalSeparator;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;

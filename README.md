@@ -200,8 +200,8 @@ Git 新克隆的源码不包含该分离模型，需要先按下文运行 `./Scr
 open VocalSeparatorPrototype.xcodeproj
 ```
 
-在 Xcode 中将目标的 `com.example.VocalSeparatorPrototype` 改成属于你开发
-团队的唯一 Bundle Identifier，再选择团队和 iPhone 运行。Simulator 可验证
+主应用的 Bundle Identifier 为 `xyz.easykaraoke.singfreely`，与 Apple Developer
+中注册的 App ID 一致。在 Xcode 中选择开发团队和 iPhone 运行。Simulator 可验证
 界面、文件处理和测试，但不能代表 iPhone 上的 Core ML GPU 性能。
 
 从 Git 新克隆、删除了 HTDemucs 捆绑模型，或修改 `project.yml` 需要重新生成工程时，

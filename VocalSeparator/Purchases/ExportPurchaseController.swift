@@ -47,7 +47,7 @@ protocol ExportStorefront: AnyObject {
 /// StoreKit's verified entitlements are the only source of access; no writable unlock flag.
 @MainActor
 final class ExportPurchaseController: ObservableObject {
-    nonisolated static let productID = "com.example.VocalSeparatorPrototype.export.lifetime"
+    nonisolated static let productID = "SingFreelyPro"
     static let shared = ExportPurchaseController(storefront: StoreKitExportStorefront())
 
     @Published private(set) var isUnlocked = false

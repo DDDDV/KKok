@@ -1,6 +1,6 @@
 # 一次性解锁导出
 
-商品 ID：`com.example.VocalSeparatorPrototype.export.lifetime`。商品类型必须是 **Non-Consumable（非消耗型）**。
+商品 ID：`SingFreelyPro`。商品类型必须是 **Non-Consumable（非消耗型）**。
 购买一次解锁后续导出，没有订阅、自动续费或按次收费。正式售价只从 StoreKit `Product.displayPrice` 读取。
 
 ## 功能范围
@@ -35,8 +35,10 @@ App 启动、回到前台和每次导出都会读取 `Transaction.currentEntitle
 ## 本地测试
 
 `Config/ExportLifetime.storekit` 只有一个非消耗型商品，**0.99 是本地测试价格，不是正式售价决定**。
-Xcode 选择 `VocalSeparator-StoreKit` scheme 可手动测试购买。普通 `VocalSeparator` scheme 不启用本地 StoreKit 配置。
-配置作为测试 bundle 的资源供 `SKTestSession` 使用，不打进正式 App 资源。
+Xcode 选择 `VocalSeparator-StoreKit` scheme 可使用该配置手动测试购买。
+普通 `VocalSeparator` scheme 当前在 Xcode 中选择了 `Sing Freely.storekit`，其中 `SingFreelyPro` 的测试价格为 3.99。
+两份配置的商品 ID 均与 `ExportPurchaseController.productID` 一致；不同测试价格不影响权限判断。
+`Config/ExportLifetime.storekit` 作为测试 bundle 的资源供 `SKTestSession` 使用，不打进正式 App 资源。
 
 - `ExportPurchaseTests`：权限过滤、购买成功、取消、待批准、验证失败、购买失败、恢复、撤销、并发操作及各格式导出拦截／临时文件清理。
 - `StoreKitExportTests`：用真实 StoreKit 测试环境执行购买、重新创建控制器、恢复、退款和 Ask to Buy 批准。
@@ -47,7 +49,7 @@ Xcode 选择 `VocalSeparator-StoreKit` scheme 可手动测试购买。普通 `Vo
 
 1. 在实际 App 记录中创建上述 ID 的非消耗型内购。如果正式商品 ID 不同，同步修改控制器常量与 `.storekit` 配置。
 2. 设置售价、销售地区、中英文名称／说明、审核截图，并完成 Apple 要求的协议、税务和银行配置。
-3. 确认正式 Bundle ID 与签名 App、App Store Connect 记录一致；本项目目前仍使用 `com.example.VocalSeparatorPrototype`。
+3. 确认正式 Bundle ID 与签名 App、App Store Connect 记录一致；本项目主应用使用 `xyz.easykaraoke.singfreely`。
 4. 首次内购随支持该功能的 App 版本一起提交审核，审核说明写明从“设置 → 永久导出”或任意导出按钮进入购买页面。
 5. 真机 Sandbox／TestFlight 必须关闭本地 StoreKit 配置，验证购买、取消、恢复、重新安装、离线已购、待批准、退款／撤销，以及实际分享目标。
 
@@ -69,6 +71,18 @@ Xcode 选择 `VocalSeparator-StoreKit` scheme 可手动测试购买。普通 `Vo
 
 本次证据在 `/private/tmp/vocal-iap-20260917/`：`en-final.xcresult`、`zh-final.xcresult`、
 `storekit-final.xcresult`、`release.log` 以及 `en-final-attachments/`、`zh-final-attachments/`。
+
+## 2026-09-17 商品 ID 对齐验证
+
+- 控制器与 `Config/ExportLifetime.storekit` 已统一使用 `SingFreelyPro`，与 `Sing Freely.storekit` 一致。
+- 从 Xcode 的 `VocalSeparator` scheme 正常 Run 后，iPhone 17 Pro / iOS 26.5 Simulator
+  购买页实际显示 `Unlock Lifetime Export — $3.99`；本次未点击购买。
+- `ExportPurchaseTests` 实际执行 15/15 通过，0 失败、0 跳过；结果位于
+  `/private/tmp/vocal-product-id-20260917/unit-tests.xcresult`。
+- `StoreKitExportTests` 在初始化 `SKTestSession` 时仍返回 `SKInternalErrorDomain Code=3`，
+  首个用例长时间无进展后已中断，未完成交易集成验证。日志位于
+  `/private/tmp/vocal-product-id-20260917/purchase-tests.log`。
+- 两份 StoreKit JSON、两条 Scheme 配置路径及 `git diff --check` 检查通过。
 
 实现依据：[Apple 交易验证与权益说明](https://developer.apple.com/documentation/storekit/transaction)、
 [恢复购买](https://developer.apple.com/documentation/storekit/appstore/sync())、

@@ -10,7 +10,7 @@
         { "description": "One purchase unlocks all audio exports and transcription sharing.", "displayName": "Lifetime Export", "locale": "en_US" },
         { "description": "一次购买，永久解锁全部音频导出和转写分享。", "displayName": "永久解锁导出", "locale": "zh_Hans" }
       ],
-      "productID": "com.example.VocalSeparatorPrototype.export.lifetime",
+      "productID": "SingFreelyPro",
       "referenceName": "Lifetime Export - Local Test Price Only",
       "type": "NonConsumable"
     }

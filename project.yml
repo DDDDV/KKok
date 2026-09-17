@@ -55,7 +55,7 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.VocalSeparatorPrototype
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.easykaraoke.singfreely
         PRODUCT_NAME: VocalSeparator
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: false
