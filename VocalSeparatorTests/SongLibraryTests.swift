@@ -64,6 +64,42 @@ final class SongLibraryTests: XCTestCase {
         XCTAssertNil(model.alert)
     }
 
+    func testSongTitlesSurviveImportSeparationRecordingAndRelaunch() async throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let recording = SingingRecordingController(
+            store: PerformanceStore(root: root.appendingPathComponent("Takes")),
+            capture: FixtureCapture(), requestPermission: { true },
+            readScoringSettings: { .init(isEnabled: false) }
+        )
+        let model = makeModel(recording: recording)
+        let titles = ["03.青花瓷", "演唱.Live.Vol.2", "Song.mp3", "没有句点的歌名"]
+        for title in titles {
+            let source = root.appendingPathComponent(title + ".wav")
+            try FileManager.default.copyItem(at: AudioTestFixtures.url(), to: source)
+            model.handleImport(.success(source))
+            try await wait(model)
+            XCTAssertEqual(model.selectedSong?.title, title)
+            model.startSeparation()
+            try await wait(model)
+            XCTAssertEqual(model.result?.sourceName, title)
+
+            // Exercise the same start/save path used by the accompaniment library.
+            model.startSinging()
+            try await wait(recording, for: .recording)
+            XCTAssertEqual(try recording.store.recoverPending()?.title, title)
+            recording.finish()
+            try await wait(recording, for: .idle)
+            let take = try XCTUnwrap(recording.completedPerformance)
+            XCTAssertEqual(take.title, title)
+            XCTAssertEqual(take.sourceSongID, model.selectedSongID)
+            XCTAssertTrue(FileManager.default.fileExists(atPath: recording.store.mixURL(take).path))
+            XCTAssertEqual(LibraryBrowser.performances(recording.performances, query: title).map(\.id), [take.id])
+        }
+        let reopened = makeModel()
+        XCTAssertEqual(Set(reopened.recording.performances.map(\.title)), Set(titles))
+        XCTAssertEqual(reopened.recording.performances, recording.performances)
+    }
+
     func testLyricsOnlyCancelledAndEmptyImportsDoNotOpenSongDetails() async throws {
         let model = makeModel()
         model.handleImport(.success(try AudioTestFixtures.url()))
@@ -299,10 +335,18 @@ final class SongLibraryTests: XCTestCase {
         XCTAssertTrue(LibraryBrowser.performances([older, newer], query: "原名称").isEmpty)
     }
 
-    private func makeModel() -> SeparationViewModel {
+    private func makeModel(recording: SingingRecordingController? = nil) -> SeparationViewModel {
         SeparationViewModel(engine: LibraryFixtureSeparator(), transcriber: LibraryFixtureTranscriber(),
-                            recording: SingingRecordingController(store: PerformanceStore(root: root.appendingPathComponent("Takes"))),
+                            recording: recording ?? SingingRecordingController(store: PerformanceStore(root: root.appendingPathComponent("Takes"))),
                             library: library)
+    }
+
+    private func wait(_ recording: SingingRecordingController, for state: SingingRecordingController.State) async throws {
+        for _ in 0..<400 {
+            if recording.state == state { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("Recording did not reach \(state): \(recording.errorText ?? "no error")")
     }
 
     private func wait(_ model: SeparationViewModel) async throws {

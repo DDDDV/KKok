@@ -131,9 +131,9 @@ final class SingingRecordingTests: XCTestCase {
     private func store() -> PerformanceStore {
         PerformanceStore(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     }
-    private func result() throws -> SeparationResult {
+    private func result(title: String = "测试") throws -> SeparationResult {
         let url = try AudioTestFixtures.url()
-        return SeparationResult(sourceName: "测试.wav", vocalsURL: url, accompanimentURL: url, duration: 2)
+        return SeparationResult(sourceName: title, vocalsURL: url, accompanimentURL: url, duration: 2)
     }
     private func awaitSaved(_ controller: SingingRecordingController) async throws {
         for _ in 0..<200 {
@@ -443,12 +443,13 @@ final class SingingRecordingTests: XCTestCase {
         let capture = FixtureCapture()
         capture.writesAudio = false
         let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true })
-        await controller.start(result: try result(), lyrics: nil, playback: AudioPlaybackController())
+        await controller.start(result: try result(title: "03.青花瓷"), lyrics: nil, playback: AudioPlaybackController())
         controller.finish()
         try await awaitSaved(controller)
         XCTAssertEqual(controller.state, .needsRecovery)
         XCTAssertNil(controller.completedPerformance)
         let pending = try XCTUnwrap(store.recoverPending())
+        XCTAssertEqual(pending.title, "03.青花瓷")
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.accompanimentURL(pending.id).path))
         let reopened = SingingRecordingController(store: store, capture: FixtureCapture(), requestPermission: { true })
         XCTAssertEqual(reopened.state, .needsRecovery)
@@ -457,6 +458,8 @@ final class SingingRecordingTests: XCTestCase {
         try await awaitSaved(reopened)
         XCTAssertEqual(reopened.state, .idle)
         XCTAssertEqual(reopened.performances.count, 1)
+        XCTAssertEqual(reopened.performances.first?.title, "03.青花瓷")
+        XCTAssertEqual(try store.performances().first?.title, "03.青花瓷")
         XCTAssertNil(try store.recoverPending())
     }
 

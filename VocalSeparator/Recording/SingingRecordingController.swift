@@ -165,7 +165,8 @@ final class SingingRecordingController: ObservableObject {
                 }
                 try Task.checkCancellation()
                 let draft = try store.prepare(
-                    title: (result.sourceName as NSString).deletingPathExtension,
+                    // The library already supplies a display title; dots belong to the song name.
+                    title: result.sourceName,
                     lyrics: lyrics, accompanimentURL: result.accompanimentURL,
                     scoring: scoringSettings.isEnabled
                         ? PitchScoringContext(reference: reference, unavailableReason: String(localized: "Recording is not ready. No score yet."),
