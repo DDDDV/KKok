@@ -88,10 +88,10 @@ Float16 `sources` output. This differs from the repository README, which labels
 the output Float32. The app follows the actual model description and supports
 both Float16 (FP16 package) and Float32 (FP32 package) output arrays.
 
-The package's embedded `license` metadata repeats the converter author's MIT
-claim for the model. That field is converter-supplied metadata, not a separate
-grant from the pretrained-weight rights holder, so this prototype does not
-treat it as commercial redistribution clearance.
+The package's embedded `license` metadata identifies the model as MIT-licensed.
+The app's HTDemucs notices use the MIT License for the model, pretrained
+weights, Demucs source code, and Core ML conversion code, based on the project
+owner's confirmation recorded below.
 
 The reproducible download script instead fetches the upstream v1.0.0 FP16
 release asset and verifies SHA-256
@@ -103,17 +103,20 @@ Bundled package leaf-file SHA-256 values:
 - `Data/com.apple.CoreML/model.mlmodel`: `dca607dbfb16390b0ae930a9a5fb1c805438758df2b48d9b1b1483dcd947531a`
 - `Data/com.apple.CoreML/weights/weight.bin`: `efab790ad07d93faeb5a19b6e1eedad8c37ad351563a891a153fce307811c099`
 
-## Distribution warning
+## HTDemucs license
 
-The converter repository describes the model as MIT-licensed. However, a
-Demucs upstream maintainer stated that pretrained weights are not covered by
-the code's MIT license and were provided for scientific use. No later,
-HTDemucs-specific commercial redistribution grant was found during this
-prototype work.
+On 2026-09-20, the project owner confirmed that the HTDemucs model and pretrained
+weights are covered by the MIT License and that adapting the model to Core ML
+for Apple platforms does not change that license. The app's license notices
+have been updated on that basis; this records the owner's confirmation rather
+than a new independent license audit.
 
-Treat this model as research/development-only until the weight rights are
-clarified. Do not submit the bundled model to TestFlight or the App Store on
-the strength of the converter repository's notice alone.
+The HTDemucs model and pretrained weights, Demucs source code, and Core ML
+conversion code are provided under the MIT License. Commercial use,
+modification, and redistribution are permitted under the MIT License, provided
+that the copyright and permission notices are retained. The bundled
+`VocalSeparator/Resources/THIRD_PARTY_NOTICES.txt` preserves the original
+copyright notices and full MIT License text.
 
 - Converter: https://github.com/dexxdean/htdemucs-coreml
-- Upstream discussion: https://github.com/facebookresearch/demucs/issues/327
+- Demucs MIT License: https://github.com/facebookresearch/demucs/blob/main/LICENSE

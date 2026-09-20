@@ -1450,19 +1450,19 @@
         }
       }
     },
-    "Demucs Model License Discussion": {
+    "Demucs MIT License": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Demucs Model License Discussion"
+            "value": "Demucs MIT License"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Demucs 权重许可讨论"
+            "value": "Demucs MIT 许可证"
           }
         }
       }
@@ -2568,7 +2568,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "许可边界"
+            "value": "许可范围"
           }
         }
       }
@@ -5788,19 +5788,19 @@
         }
       }
     },
-    "The conversion code and Demucs code repository use the MIT License. However, upstream Demucs maintainers have stated that pretrained weights are not covered by MIT and are intended only for scientific use. Before public distribution, TestFlight, App Store, or commercial use, obtain explicit permission for the weights or replace the model.": {
+    "The HTDemucs model and pretrained weights, Demucs source code, and Core ML conversion code are provided under the MIT License. Conversion to Core ML for Apple platforms does not change the MIT License. Commercial use, modification, and redistribution are permitted under the MIT License, provided that the copyright and permission notices are retained.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The conversion code and Demucs code repository use the MIT License. However, upstream Demucs maintainers have stated that pretrained weights are not covered by MIT and are intended only for scientific use. Before public distribution, TestFlight, App Store, or commercial use, obtain explicit permission for the weights or replace the model."
+            "value": "The HTDemucs model and pretrained weights, Demucs source code, and Core ML conversion code are provided under the MIT License. Conversion to Core ML for Apple platforms does not change the MIT License. Commercial use, modification, and redistribution are permitted under the MIT License, provided that the copyright and permission notices are retained."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "转换代码与 Demucs 代码仓库采用 MIT License；但 Demucs 上游维护者曾说明预训练权重不包含在 MIT 授权内，仅面向科学用途。公开发布、TestFlight、App Store 或商业使用前，应先取得明确的权重授权或替换模型。"
+            "value": "HTDemucs 模型及预训练权重、Demucs 源代码和 Core ML 转换代码均采用 MIT 许可证。为 Apple 平台转换为 Core ML 格式不会改变其 MIT 许可证。遵守 MIT 许可证并保留版权声明和许可声明，即可用于商业用途、修改和再分发。"
           }
         }
       }
@@ -6400,20 +6400,19 @@
         }
       }
     },
-    "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors.": {
+    "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. The HTDemucs model and weights, Demucs source code, and WhisperKit source code are provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors.": {
       "extractionState": "manual",
-      "comment": "Language-independent numeric format, brand label, or original attribution.",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors."
+            "value": "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. The HTDemucs model and weights, Demucs source code, and WhisperKit source code are provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors."
+            "value": "本产品使用 Meta Platforms, Inc. 的 Hybrid Transformer Demucs 和 Argmax, Inc. 的 WhisperKit。HTDemucs 模型及权重、Demucs 源代码和 WhisperKit 源代码均采用 MIT 许可证。本项目与 Apple、Argmax、Meta、OpenAI 或 Demucs 作者不存在隶属关系。"
           }
         }
       }

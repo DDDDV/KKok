@@ -486,8 +486,7 @@ predict:   10.47 s
   双语、清唱、强伴奏及不同音质的音频集合。
 - Debug 包体积已经验证；Release 归档、安装包体积、TestFlight/App Store 上传限制
   尚未验收。
-- Demucs 预训练权重的再分发许可仍需在任何公开发布前单独解决。Whisper 相关
-  许可来源已经写入 app 内第三方声明，但正式发行仍应由发布方复核。
+- Whisper 相关许可来源已经写入 app 内第三方声明，但正式发行仍应由发布方复核。
 - Whisper 模型与 tokenizer 源目录有意不纳入当前可推送分支；该分支历史仅保留
   固定 revision、27 个相对路径、精确长度和 SHA-256 的可信 manifest。需要重建
   镜像时，按 `MODEL_PROVENANCE.md` 记录的上游 URL 获取并逐文件复验，不把模型

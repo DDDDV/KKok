@@ -26,23 +26,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Demucs source code
-------------------
+HTDemucs model, pretrained weights, and Demucs source code
+--------------------------------------------------------
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
 
-The Demucs source code is provided under the MIT License reproduced above.
+The HTDemucs model, including its pretrained weights and bundled
+HTDemucs_CoreML_FP16.mlpackage representation, and the Demucs source code are
+provided under the MIT License reproduced above. Conversion to Core ML for
+Apple platforms does not change the MIT License. Commercial use, modification,
+and redistribution are permitted under the MIT License, provided that the
+copyright and permission notices are retained.
+
 This product uses Hybrid Transformer Demucs by Meta Platforms, Inc.
 Source: https://github.com/facebookresearch/demucs
-
-Weight-license caution
-----------------------
-
-The pretrained model weight rights are not treated as cleared for public or
-commercial redistribution in this prototype. A Demucs upstream maintainer
-distinguished the pretrained weights from the MIT-licensed code and described
-them as scientific-use assets. Review and resolve this separately before any
-public distribution.
+License: https://github.com/facebookresearch/demucs/blob/main/LICENSE
 
 This project is not affiliated with Apple, Meta, or the Demucs authors.
 

@@ -162,22 +162,22 @@ struct LegalView: View {
 
                     Text(String(localized: "License Scope"))
                         .font(.headline)
-                    Text(String(localized: "The conversion code and Demucs code repository use the MIT License. However, upstream Demucs maintainers have stated that pretrained weights are not covered by MIT and are intended only for scientific use. Before public distribution, TestFlight, App Store, or commercial use, obtain explicit permission for the weights or replace the model."))
+                    Text(String(localized: "The HTDemucs model and pretrained weights, Demucs source code, and Core ML conversion code are provided under the MIT License. Conversion to Core ML for Apple platforms does not change the MIT License. Commercial use, modification, and redistribution are permitted under the MIT License, provided that the copyright and permission notices are retained."))
 
                     Link(
                         String(localized: "HTDemucs Core ML Repository"),
                         destination: URL(string: "https://github.com/dexxdean/htdemucs-coreml")!
                     )
                     Link(
-                        String(localized: "Demucs Model License Discussion"),
-                        destination: URL(string: "https://github.com/facebookresearch/demucs/issues/327")!
+                        String(localized: "Demucs MIT License"),
+                        destination: URL(string: "https://github.com/facebookresearch/demucs/blob/main/LICENSE")!
                     )
                     Link(
                         String(localized: "Argmax Open Source Swift SDK"),
                         destination: URL(string: "https://github.com/argmaxinc/argmax-oss-swift")!
                     )
 
-                    Text("This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. Their source code is provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors.")
+                    Text("This product uses Hybrid Transformer Demucs by Meta Platforms, Inc. and WhisperKit by Argmax, Inc. The HTDemucs model and weights, Demucs source code, and WhisperKit source code are provided under the MIT License. This project is not affiliated with Apple, Argmax, Meta, OpenAI, or the Demucs authors.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

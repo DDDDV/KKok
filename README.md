@@ -327,9 +327,10 @@ python3 Scripts/validate-localizations.py
 
 ## 许可
 
-本工程是研究/内部验证原型。转换代码与 Argmax WhisperKit 为 MIT；Argmax
-Whisper Core ML 模型卡声明 MIT，OpenAI tokenizer 仓库声明 Apache-2.0。
-预训练 Demucs 权重的授权仍存在上游声明冲突。公开发布、TestFlight、App Store
-或商业使用前，请先完成独立许可复核，并取得明确的 Demucs 权重授权或替换为
-权利链清晰的模型。详见
+HTDemucs 模型及预训练权重、Demucs 源代码和 Core ML 转换代码均采用 MIT
+许可证。为 Apple 平台转换为 Core ML 格式不会改变其 MIT 许可证；遵守 MIT
+许可证并保留版权声明和许可声明，即可用于商业用途、修改和再分发。
+
+Argmax WhisperKit 为 MIT；Argmax Whisper Core ML 模型卡声明 MIT，OpenAI
+tokenizer 仓库声明 Apache-2.0。许可确认记录和完整第三方声明详见
 [`MODEL_PROVENANCE.md`](MODEL_PROVENANCE.md) 与应用内“关于与许可”。
