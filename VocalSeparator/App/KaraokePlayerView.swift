@@ -27,7 +27,10 @@ struct KaraokeSessionView: View {
             Button(String(localized: "Finish and Save")) { recording.finish() }
             Button(String(localized: "Keep Singing"), role: .cancel) {}
         } message: { Text(String(localized: "The vocals recorded so far will be saved as a performance.")) }
-        .sheet(item: $reviewingPerformance) { performance in
+        .sheet(item: $reviewingPerformance, onDismiss: {
+            // ContentView selects My Recordings when the take is saved; reveal it after review.
+            dismiss()
+        }) { performance in
             PerformanceReviewView(performance: performance, store: recording.store, playback: playback,
                                   onSave: recording.didSaveAdjustments)
         }
