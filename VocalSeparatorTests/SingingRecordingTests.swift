@@ -10,16 +10,18 @@ final class PerformanceMixerTests: XCTestCase {
     }
     override func tearDownWithError() throws { try FileManager.default.removeItem(at: root) }
 
-    func testMixedExportContainsBothSourcesAtSameOriginAndEndsAtEarlyStop() throws {
+    func testMixedExportContainsBothSourcesAndKeepsBackingAfterEarlyStop() throws {
         let voice = root.appendingPathComponent("voice.wav")
         let backing = root.appendingPathComponent("backing.wav")
         let output = root.appendingPathComponent("performance.wav")
         try SingingFixtures.write(voice, seconds: 0.6, channels: 1) { _, frame in frame >= 4_410 ? 0.2 : 0 }
         try SingingFixtures.write(backing, seconds: 2, channels: 2) { channel, _ in channel == 0 ? 0.1 : -0.1 }
         let duration = try PerformanceMixer().mix(microphoneURL: voice, accompanimentURL: backing, outputURL: output)
-        XCTAssertEqual(duration, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(duration, 2, accuracy: 0.0001)
         let samples = try SingingFixtures.read(output)
-        XCTAssertEqual(samples[0].count, 26_460)
+        XCTAssertEqual(samples[0].count, 88_200)
+        XCTAssertEqual(samples[0][60_000], 0.07, accuracy: 0.0001)
+        XCTAssertEqual(samples[1][88_199], -0.07, accuracy: 0.0001)
         XCTAssertEqual(samples[0][100], 0.07, accuracy: 0.0001)
         XCTAssertEqual(samples[1][100], -0.07, accuracy: 0.0001)
         XCTAssertEqual(samples[0][4_420], 0.27, accuracy: 0.0001)
@@ -67,6 +69,43 @@ final class PerformanceMixerTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["voice.wav"])
     }
 
+    func testPartialTakeKeepsIntroVoicePlacementAndOutroAcrossRecoveryAndEdits() throws {
+        let backing = root.appendingPathComponent("backing.wav")
+        try SingingFixtures.write(backing, seconds: 9, channels: 2) { _, _ in 0.1 }
+        let store = PerformanceStore(root: root.appendingPathComponent("takes"))
+        let draft = try store.prepare(title: "Partial", lyrics: nil, accompanimentURL: backing)
+        let worker = try SingingCaptureWorker(url: store.microphoneURL(draft.id), sampleRate: 48_000,
+                                             duration: 9, analyzePitch: false, startTime: 5.137)
+        // The count-in microphone signal must never reach the saved performance.
+        try worker.consume([Float](repeating: 0.8, count: 4_800), at: -4_800)
+        for position in stride(from: 0, to: 48_000, by: 960) {
+            try worker.consume([Float](repeating: 0.2, count: 960), at: position)
+        }
+        worker.finish()
+        let reopened = PerformanceStore(root: store.root)
+        let recovered = try XCTUnwrap(reopened.recoverPending())
+        let take = try reopened.finish(recovered)
+        XCTAssertEqual(take.duration, 9, accuracy: 0.0001)
+        let saved = try SingingFixtures.read(reopened.mixURL(take))[0]
+        XCTAssertEqual(saved.count, 396_900)
+        XCTAssertEqual(saved[100], 0.07, accuracy: 0.0001)
+        XCTAssertEqual(saved[Int(5.1 * 44_100)], 0.07, accuracy: 0.0001)
+        XCTAssertEqual(saved[Int(5.2 * 44_100)], 0.27, accuracy: 0.0001)
+        XCTAssertEqual(saved[Int(7 * 44_100)], 0.07, accuracy: 0.0001)
+        XCTAssertEqual(saved.last ?? 0, 0.07, accuracy: 0.0001)
+        for effect in VocalEffect.allCases {
+            let rendered = try reopened.render(take, settings: .init(vocalVolume: 0.5, effect: effect),
+                                              to: root.appendingPathComponent("edited-\(effect.rawValue).wav"))
+            XCTAssertEqual(rendered.duration, 9, accuracy: 0.0001)
+            let samples = try SingingFixtures.read(rendered.url)[0]
+            XCTAssertEqual(samples[100], 0.07, accuracy: 0.0001)
+            if effect == .natural {
+                XCTAssertEqual(samples[Int(5.2 * 44_100)], 0.17, accuracy: 0.0001)
+                XCTAssertEqual(samples.last ?? 0, 0.07, accuracy: 0.0001)
+            }
+        }
+    }
+
     func testStoreRetainsTakesAndLyricsAcrossRelaunchAndScopedRemoval() throws {
         let store = PerformanceStore(root: root)
         let lyrics = try LRCParser.parse("[00:00]<00:00>唱<00:00.3>歌")
@@ -102,6 +141,90 @@ final class SingingRecordingTests: XCTestCase {
             try await Task.sleep(nanoseconds: 20_000_000)
         }
         XCTFail("Mixing did not finish")
+    }
+
+    func testLyricSelectionCountdownAndSaveStayOnSongClock() async throws {
+        let store = store()
+        defer { try? FileManager.default.removeItem(at: store.root) }
+        let capture = FixtureCapture()
+        let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true },
+                                                    readScoringSettings: { .init(isEnabled: false) })
+        let lyrics = try LRCParser.parse("[00:00]First\n[00:01]Selected")
+        controller.selectStart(at: 1.6, lyrics: lyrics, duration: 2)
+        XCTAssertEqual(controller.selectedStartTime, 1)
+        await controller.start(result: try result(), lyrics: lyrics, playback: AudioPlaybackController())
+        XCTAssertEqual(capture.startPlan.vocalTime, 1)
+        XCTAssertEqual(capture.startPlan.backingTime, 0)
+        XCTAssertEqual(capture.startPlan.backingDelay, 2)
+        for (time, expected) in [(-2.0, 3), (-1.0, 2), (0.0, 1)] {
+            capture.currentTime = time
+            controller.refresh()
+            XCTAssertEqual(controller.countdown, expected)
+            XCTAssertEqual(controller.currentTime, time)
+            XCTAssertEqual(controller.level, 0)
+        }
+        capture.currentTime = 1
+        controller.refresh()
+        XCTAssertNil(controller.countdown)
+        controller.selectStart(at: 0, lyrics: lyrics, duration: 2)
+        XCTAssertEqual(controller.selectedStartTime, 1, "The active take's origin cannot change")
+        capture.currentTime = 1.6
+        controller.finish()
+        try await awaitSaved(controller)
+        let take = try XCTUnwrap(controller.completedPerformance)
+        XCTAssertEqual(take.duration, 2, accuracy: 0.0001)
+        XCTAssertEqual(take.lyrics, lyrics)
+        XCTAssertNil(take.pitchScore)
+    }
+
+    func testCancelCountdownOnStopBackgroundAndRouteChangeDoesNotSaveSilentTake() async throws {
+        for action in 0..<3 {
+            let store = store()
+            defer { try? FileManager.default.removeItem(at: store.root) }
+            let capture = FixtureCapture()
+            var route = WirelessAudioTests.wirelessRoute
+            let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true },
+                readScoringSettings: { .init(isEnabled: false) }, readAudioRoute: { route })
+            controller.selectStart(at: 1, lyrics: nil, duration: 2)
+            capture.currentTime = -1
+            await controller.start(result: try result(), lyrics: nil, playback: AudioPlaybackController())
+            switch action {
+            case 0: controller.finish()
+            case 1: controller.handleBackground()
+            default:
+                route = WirelessAudioTests.speakerRoute
+                controller.refreshAudioRoute()
+            }
+            capture.onCompletion?(true)
+            XCTAssertEqual(controller.state, .idle)
+            XCTAssertNil(controller.countdown)
+            XCTAssertNil(controller.completedPerformance)
+            XCTAssertEqual(capture.stopCount, 1)
+            XCTAssertNil(try store.recoverPending())
+            XCTAssertTrue(try store.performances().isEmpty)
+        }
+    }
+
+    func testSkippedLyricsAreExcludedFromSavedScoringReference() async throws {
+        let store = store()
+        defer { try? FileManager.default.removeItem(at: store.root) }
+        let capture = FixtureCapture()
+        let controller = SingingRecordingController(store: store, capture: capture, requestPermission: { true },
+            readScoringSettings: { .init(isEnabled: true) },
+            analyzeReference: { _ in PitchScoringSettingsTests.reference })
+        controller.selectStart(at: 1, lyrics: nil, duration: 2)
+        await controller.start(result: try result(), lyrics: nil, playback: AudioPlaybackController())
+        let draft = try XCTUnwrap(store.recoverPending())
+        let context = try JSONDecoder().decode(PitchScoringContext.self,
+            from: Data(contentsOf: store.directory(draft.id).appendingPathComponent("pitch-context.json")))
+        let reference = try XCTUnwrap(context.reference)
+        XCTAssertFalse(reference.frames.isEmpty)
+        XCTAssertTrue(reference.frames.allSatisfy { $0.time >= 1 })
+        capture.currentTime = 1.6
+        controller.finish()
+        try await awaitSaved(controller)
+        let score = try XCTUnwrap(controller.completedPerformance?.pitchScore)
+        XCTAssertEqual(score.recordedDuration, 1.6, accuracy: 0.001)
     }
 
     func testDeniedPermissionDoesNotStartCaptureOrCreateDraft() async throws {
@@ -158,7 +281,7 @@ final class SingingRecordingTests: XCTestCase {
         XCTAssertEqual(capture.stopCount, 1)
         XCTAssertEqual(controller.performances.count, 1)
         let saved = try XCTUnwrap(controller.completedPerformance)
-        XCTAssertEqual(saved.duration, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(saved.duration, 2, accuracy: 0.0001)
         try player.toggle(store.mixURL(saved))
         XCTAssertTrue(player.isPlaying)
         XCTAssertEqual(player.duration, saved.duration, accuracy: 0.0001)
@@ -411,12 +534,18 @@ final class FixtureCapture: KaraokeCapturing {
     var vocalsEnabled = false
     var vocalChanges: [Bool] = []
     var didStart: (() -> Void)?
-    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
+    var startPlan = SingingStart.beginning
+    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL, start: SingingStart) throws {
         startCount += 1
         if failsStart { throw SingingError.unavailable }
+        startPlan = start
         self.vocalsURL = vocalsURL
         self.vocalsEnabled = vocalsEnabled
-        if writesAudio { try SingingFixtures.write(microphoneURL, seconds: 0.6) { _, frame in sin(Float(frame) * 0.03) * 0.2 } }
+        if writesAudio {
+            try SingingFixtures.write(microphoneURL, seconds: start.vocalTime + 0.6) { _, frame in
+                Double(frame) < start.vocalTime * 44_100 ? 0 : sin(Float(frame) * 0.03) * 0.2
+            }
+        }
         didStart?()
     }
     func setVocalsEnabled(_ enabled: Bool) {

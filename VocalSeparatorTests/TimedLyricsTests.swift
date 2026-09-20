@@ -220,3 +220,32 @@ final class TimedLyricsTests: XCTestCase {
         XCTFail("Import did not finish")
     }
 }
+
+final class SingingStartTests: XCTestCase {
+    func testSelectionUsesLyricOnsetSkipsBlankLinesAndClampsSongBounds() throws {
+        let lyrics = try LRCParser.parse("[00:10]First\n[00:20]Second\n[00:25] \n[00:30]Outside")
+        XCTAssertEqual(SingingStart.selection(at: 0, lyrics: lyrics, duration: 30), 10)
+        XCTAssertEqual(SingingStart.selection(at: 24, lyrics: lyrics, duration: 30), 20)
+        XCTAssertEqual(SingingStart.selection(at: 40, lyrics: lyrics, duration: 30), 20)
+        XCTAssertNil(SingingStart.selection(at: .nan, lyrics: lyrics, duration: 30))
+        XCTAssertNil(SingingStart.selection(at: 10, lyrics: lyrics, duration: .infinity))
+        XCTAssertNil(SingingStart.selection(at: 0, lyrics: nil, duration: 0))
+        XCTAssertEqual(SingingStart.selection(at: -5, lyrics: nil, duration: 30), 0)
+        XCTAssertEqual(SingingStart.selection(at: 40, lyrics: nil, duration: 30), 29.8)
+    }
+
+    func testThreeSecondCountInIncludesVirtualSilenceAtBeginning() {
+        for target in [0.0, 1.5, 3, 60.125] {
+            let plan = SingingStart(vocalTime: target, hasCountdown: true)
+            XCTAssertEqual(plan.backingTime, max(0, target - 3))
+            XCTAssertEqual(plan.backingDelay, max(0, 3 - target))
+            XCTAssertEqual(plan.countdown(at: target - 3), 3)
+            XCTAssertEqual(plan.countdown(at: target - 2), 2)
+            XCTAssertEqual(plan.countdown(at: target - 1), 1)
+            XCTAssertEqual(plan.countdown(at: target - 0.001), 1)
+            XCTAssertNil(plan.countdown(at: target))
+            XCTAssertNil(plan.countdown(at: target + 1))
+        }
+        XCTAssertNil(SingingStart.beginning.countdown(at: 0))
+    }
+}

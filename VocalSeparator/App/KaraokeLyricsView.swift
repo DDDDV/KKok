@@ -5,6 +5,9 @@ struct KaraokeLyricsView: View {
     let currentTime: TimeInterval
     var viewportHeight: CGFloat = 300
     var immersive = false
+    var onSelectLine: ((LyricLine) -> Void)? = nil
+    var onBrowse: (() -> Void)? = nil
+    @State private var isBrowsing = false
     @ScaledMetric(relativeTo: .title3) private var fontSize: CGFloat = 20
     private var activeIDs: [Int] { lyrics.activeLineIDs(at: currentTime) }
 
@@ -13,7 +16,7 @@ struct KaraokeLyricsView: View {
             ScrollView {
                 LazyVStack(spacing: 22) {
                     ForEach(lyrics.lines) { line in
-                        lyricText(line, active: activeIDs.contains(line.id))
+                        selectableLyric(line)
                             .font(.system(size: immersive ? fontSize * 1.4 : fontSize,
                                           weight: activeIDs.contains(line.id) ? .bold : .medium))
                             .multilineTextAlignment(.center)
@@ -26,7 +29,19 @@ struct KaraokeLyricsView: View {
                 .padding(.horizontal, 8)
             }
             .frame(height: viewportHeight)
+            .simultaneousGesture(DragGesture(minimumDistance: 10).onChanged { _ in
+                guard onSelectLine != nil, !isBrowsing else { return }
+                isBrowsing = true
+                onBrowse?()
+            })
+            .onChange(of: onSelectLine == nil) { _, disabled in
+                if disabled {
+                    isBrowsing = false
+                    proxy.scrollTo(lyrics.scrollLineID(at: currentTime), anchor: .center)
+                }
+            }
             .onChange(of: activeIDs, initial: true) { _, ids in
+                guard !isBrowsing else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(ids.first ?? lyrics.scrollLineID(at: currentTime), anchor: .center)
                 }
@@ -34,6 +49,25 @@ struct KaraokeLyricsView: View {
             .onChange(of: lyrics) { _, _ in
                 proxy.scrollTo(activeIDs.first ?? lyrics.scrollLineID(at: currentTime), anchor: .center)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func selectableLyric(_ line: LyricLine) -> some View {
+        if let onSelectLine, !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Button {
+                isBrowsing = false
+                onSelectLine(line)
+            } label: {
+                lyricText(line, active: activeIDs.contains(line.id))
+                    .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(line.text)
+            .accessibilityHint(String(localized: "Select this line to start singing after a three-second countdown."))
+            .accessibilityIdentifier("karaoke.lyric.\(line.id)")
+        } else {
+            lyricText(line, active: activeIDs.contains(line.id))
         }
     }
 

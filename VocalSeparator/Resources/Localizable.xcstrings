@@ -855,6 +855,23 @@
         }
       }
     },
+    "Cancel Countdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Countdown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消倒计时"
+          }
+        }
+      }
+    },
     "Cancel Separation": {
       "extractionState": "manual",
       "localizations": {
@@ -1140,6 +1157,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "请确认歌词对应的歌曲"
+          }
+        }
+      }
+    },
+    "Choose where to start singing. Playback begins three seconds before the selected line.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose where to start singing. Playback begins three seconds before the selected line."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择开唱位置，伴奏会从所选歌词前 3 秒开始播放。"
           }
         }
       }
@@ -1582,6 +1616,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在下载转写模型（%lld%%）…"
+          }
+        }
+      }
+    },
+    "Drag the progress bar or tap a lyric to choose where to sing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag the progress bar or tap a lyric to choose where to sing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动进度条或点选歌词，选择开唱位置。"
           }
         }
       }
@@ -2045,6 +2096,23 @@
         }
       }
     },
+    "From Beginning": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Beginning"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从头开始"
+          }
+        }
+      }
+    },
     "Full Performance": {
       "extractionState": "manual",
       "localizations": {
@@ -2058,6 +2126,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "整首演唱"
+          }
+        }
+      }
+    },
+    "Get ready to sing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get ready to sing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备开唱"
           }
         }
       }
@@ -4972,6 +5057,23 @@
         }
       }
     },
+    "Select this line to start singing after a three-second countdown.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select this line to start singing after a three-second countdown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择这一句，倒计时 3 秒后开始演唱。"
+          }
+        }
+      }
+    },
     "Separate Vocals and Backing Track": {
       "extractionState": "manual",
       "localizations": {
@@ -5261,6 +5363,23 @@
         }
       }
     },
+    "Singing starts in %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Singing starts in %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 秒开始演唱"
+          }
+        }
+      }
+    },
     "Song": {
       "extractionState": "manual",
       "localizations": {
@@ -5448,6 +5567,23 @@
         }
       }
     },
+    "Start at %@ · 3-second countdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start at %@ · 3-second countdown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 %@ 开唱 · 倒计时 3 秒"
+          }
+        }
+      }
+    },
     "Start singing to see the notes": {
       "extractionState": "manual",
       "localizations": {
@@ -5580,6 +5716,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "点歌曲旁的爱心即可收藏，或试试其他筛选条件。"
+          }
+        }
+      }
+    },
+    "Tap to cancel the countdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to cancel the countdown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击取消倒计时"
           }
         }
       }
@@ -7416,6 +7569,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "录音已保留，可以继续保存为作品。"
+          }
+        }
+      }
+    },
+    "Your saved performance keeps the full backing track.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your saved performance keeps the full backing track."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存的作品会保留整首伴奏。"
           }
         }
       }

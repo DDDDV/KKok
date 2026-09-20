@@ -16,7 +16,8 @@ struct KaraokeSessionView: View {
     var body: some View {
         KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording,
                           startSinging: startSinging, togglePlayback: togglePlayback, close: {
-            if recording.state == .recording { isConfirmingExit = true }
+            if recording.countdown != nil { recording.finish(); dismiss() }
+            else if recording.state == .recording { isConfirmingExit = true }
             else { dismiss() }
         }, artworkURL: artworkURL)
         .preferredColorScheme(.dark)
@@ -49,7 +50,7 @@ struct KaraokePlayerView: View {
     @AppStorage(PitchScoringSettings.modeKey) private var storedScoringMode = PitchScoringMode.strict.rawValue
 
     private var isRecording: Bool { recording.state == .recording }
-    private var clockTime: TimeInterval { isRecording ? recording.currentTime : playback.currentTime }
+    private var clockTime: TimeInterval { isRecording ? max(0, recording.currentTime) : playback.currentTime }
     private var clockDuration: TimeInterval { isRecording ? recording.duration : max(playback.duration, result.duration) }
     private var scoringSettings: PitchScoringSettings {
         recording.isBusy ? recording.activeScoringSettings
@@ -73,8 +74,9 @@ struct KaraokePlayerView: View {
                         VStack(spacing: 9) {
                             Text(result.sourceName).font(compact ? .title3.bold() : .title2.bold()).multilineTextAlignment(.center).lineLimit(3)
                             HStack(spacing: 6) {
-                                Circle().fill(isRecording ? .red : StudioTheme.cream).frame(width: 5, height: 5)
-                                Text(isRecording ? String(localized: "Recording · Make this moment yours") : String(localized: "Your own stage · Sing for yourself"))
+                                Circle().fill(isRecording && recording.countdown == nil ? .red : StudioTheme.cream).frame(width: 5, height: 5)
+                                Text(recording.countdown != nil ? String(localized: "Get ready to sing")
+                                     : isRecording ? String(localized: "Recording · Make this moment yours") : String(localized: "Your own stage · Sing for yourself"))
                                     .font(.caption).foregroundStyle(.white.opacity(0.55))
                             }
                         }
@@ -89,7 +91,9 @@ struct KaraokePlayerView: View {
                         }
                         if let lyrics {
                             KaraokeLyricsView(lyrics: lyrics, currentTime: clockTime,
-                                              viewportHeight: lyricsHeight, immersive: true)
+                                              viewportHeight: lyricsHeight, immersive: true,
+                                              onSelectLine: recording.isBusy ? nil : { selectPosition($0.start, snap: true) },
+                                              onBrowse: { playback.pause() })
                                 .mask {
                                     LinearGradient(stops: [.init(color: .clear, location: 0),
                                                            .init(color: .black, location: 0.15),
@@ -97,6 +101,7 @@ struct KaraokePlayerView: View {
                                                            .init(color: .clear, location: 1)],
                                                    startPoint: .top, endPoint: .bottom)
                                 }
+                                .overlay { countdownPrompt }
                         } else {
                             let artworkSize = min(180, max(60, geometry.size.height - 510))
                             VStack(spacing: 12) {
@@ -109,6 +114,7 @@ struct KaraokePlayerView: View {
                                     .font(.caption).foregroundStyle(.white.opacity(0.38))
                             }
                             .frame(maxWidth: .infinity).frame(height: lyricsHeight)
+                            .overlay { countdownPrompt }
                         }
                         transport(compact: compact).padding(.top, compact ? 4 : 10)
                     }
@@ -120,6 +126,11 @@ struct KaraokePlayerView: View {
         }
         .foregroundStyle(.white)
         .onChange(of: scoringSettings, initial: true) { _, _ in recording.refreshScoringPreferences() }
+        .onChange(of: recording.countdown) { _, value in
+            if let value, UIAccessibility.isVoiceOverRunning {
+                UIAccessibility.post(notification: .announcement, argument: String(localized: "Singing starts in \(value)"))
+            }
+        }
         .task(id: result.accompanimentURL) {
             recording.refreshAudioRoute()
             guard !recording.isBusy else { return }
@@ -131,6 +142,44 @@ struct KaraokePlayerView: View {
                 selectionError = nil
             } catch { selectionError = error.localizedDescription }
         }
+    }
+
+    @ViewBuilder
+    private var countdownPrompt: some View {
+        if let countdown = recording.countdown {
+            HStack(spacing: 16) {
+                Text(verbatim: "\(countdown)")
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                    .contentTransition(.numericText())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Get ready to sing")).font(.headline)
+                    if let line = lyrics?.lines.first(where: { $0.start == recording.selectedStartTime }) {
+                        Text(line.text).font(.subheadline).lineLimit(2)
+                    }
+                }
+            }
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "Singing starts in \(countdown)"))
+            .accessibilityIdentifier("karaoke.countdown")
+        }
+    }
+
+    private func selectPosition(_ time: Double, snap: Bool) {
+        guard !recording.isBusy else { return }
+        do {
+            if playback.currentURL != result.accompanimentURL {
+                try playback.load(result.accompanimentURL, vocalsURL: result.vocalsURL)
+                playback.setVocalsEnabled(recording.vocalsEnabled)
+            }
+            selectionError = nil
+        } catch { selectionError = error.localizedDescription; return }
+        playback.pause()
+        recording.selectStart(at: time, lyrics: lyrics, duration: clockDuration)
+        playback.seek(to: snap ? (recording.selectedStartTime ?? time) : time)
     }
 
     private var stageHeader: some View {
@@ -167,7 +216,7 @@ struct KaraokePlayerView: View {
                 .accessibilityHint(String(localized: "Turn original vocals on or off while singing. The backing track keeps playing."))
                 .disabled(recording.isBusy && !isRecording)
                 Spacer()
-                if isRecording {
+                if isRecording && recording.countdown == nil {
                     ProgressView(value: Double(recording.level)).tint(StudioTheme.cream)
                         .frame(width: 60).accessibilityLabel(String(localized: "Microphone Level"))
                     Text("REC").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.red)
@@ -177,17 +226,37 @@ struct KaraokePlayerView: View {
                 }
             }
             VStack(spacing: 3) {
-                Slider(value: Binding(get: { min(clockTime, clockDuration) }, set: { playback.seek(to: $0) }),
+                Slider(value: Binding(get: { min(clockTime, clockDuration) }, set: { selectPosition($0, snap: false) }),
                        in: 0...max(clockDuration, 0.001)) { editing in
-                    if editing { playback.beginScrubbing() } else { playback.endScrubbing() }
+                    if editing { playback.pause() }
+                    else { selectPosition(playback.currentTime, snap: true) }
                 }
-                .tint(.white.opacity(0.85)).disabled(playback.currentURL == nil || recording.isBusy)
+                .tint(.white.opacity(0.85)).disabled(recording.isBusy)
                 .accessibilityLabel(String(localized: "Playback Progress"))
+                .accessibilityIdentifier("karaoke.progress")
+                .accessibilityHint(String(localized: "Choose where to start singing. Playback begins three seconds before the selected line."))
                 HStack {
                     Text(StudioTheme.duration(clockTime))
                     Spacer()
                     Text(StudioTheme.duration(clockDuration))
                 }.font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
+            }
+            if !recording.isBusy {
+                if let selected = recording.selectedStartTime {
+                    HStack {
+                        Text(String(localized: "Start at \(StudioTheme.duration(selected)) · 3-second countdown"))
+                            .accessibilityIdentifier("karaoke.selectedStart")
+                        Spacer()
+                        Button(String(localized: "From Beginning")) {
+                            recording.selectStart(at: nil, lyrics: lyrics, duration: clockDuration)
+                            playback.pause()
+                            playback.seek(to: 0)
+                        }
+                    }.font(.caption).foregroundStyle(.white.opacity(0.8))
+                } else {
+                    Text(String(localized: "Drag the progress bar or tap a lyric to choose where to sing."))
+                        .font(.caption).foregroundStyle(.white.opacity(0.6))
+                }
             }
             if recording.state == .preparing || recording.state == .mixing {
                 ProgressView(recording.state == .mixing
@@ -196,7 +265,7 @@ struct KaraokePlayerView: View {
                     .tint(.white).frame(height: 86)
             } else {
                 HStack(alignment: .center, spacing: 36) {
-                    Button { playback.seek(to: max(0, playback.currentTime - 10)) } label: {
+                    Button { selectPosition(max(0, playback.currentTime - 10), snap: true) } label: {
                         VStack(spacing: 8) {
                             Image(systemName: "gobackward.10").font(.title2)
                             Text(String(localized: "Replay")).font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
@@ -214,7 +283,8 @@ struct KaraokePlayerView: View {
                                 .foregroundStyle(isRecording ? .white : StudioTheme.stage)
                         }
                     }
-                    .accessibilityLabel(isRecording ? String(localized: "Finish and Save Recording") : String(localized: "Start Singing"))
+                    .accessibilityLabel(recording.countdown != nil ? String(localized: "Cancel Countdown")
+                                        : isRecording ? String(localized: "Finish and Save Recording") : String(localized: "Start Singing"))
                     .accessibilityIdentifier("karaoke.record")
                     .disabled(recording.isBusy && !isRecording)
                     Button(action: togglePlayback) {
@@ -225,8 +295,10 @@ struct KaraokePlayerView: View {
                     }.accessibilityLabel(playback.isPlaying ? String(localized: "Pause Preview") : String(localized: "Preview Backing Track")).disabled(recording.isBusy)
                 }
                 .buttonStyle(.plain)
-                if !compact {
-                    Text(isRecording ? String(localized: "Tap to finish · Saves automatically when the track ends") : String(localized: "Tap to sing · Records your voice from the beginning"))
+                if !compact || recording.countdown != nil {
+                    Text(recording.countdown != nil ? String(localized: "Tap to cancel the countdown")
+                         : isRecording ? String(localized: "Tap to finish · Saves automatically when the track ends")
+                         : String(localized: "Your saved performance keeps the full backing track."))
                         .font(.caption).foregroundStyle(.white.opacity(0.6))
                 }
             }

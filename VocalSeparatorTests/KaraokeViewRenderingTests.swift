@@ -6,6 +6,53 @@ import XCTest
 /// Attachments are retained in xcresult; this is not a substitute for UI interaction testing.
 final class KaraokeViewRenderingTests: XCTestCase {
     @MainActor
+    func testRenderSelectedLyricAndCountdownOnCompactAndLargeTextStage() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("song.wav")
+        try SingingFixtures.write(source, seconds: 12, channels: 2) { _, _ in 0.1 }
+        let capture = FixtureCapture()
+        capture.duration = 12
+        capture.currentTime = 2
+        let suite = "CountdownRendering-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: PitchScoringSettings.enabledKey)
+        let recording = SingingRecordingController(store: PerformanceStore(root: root.appendingPathComponent("takes")),
+            capture: capture, requestPermission: { true }, readScoringSettings: { .init(isEnabled: false) })
+        let playback = AudioPlaybackController()
+        defer { playback.stop() }
+        let result = SeparationResult(sourceName: "从喜欢的这一句开始", vocalsURL: source, accompanimentURL: source, duration: 12)
+        let lyrics = try LRCParser.parse("[00:00]轻轻听着前奏\n[00:05]从这一句开始唱\n[00:08]让音乐陪着你")
+        recording.selectPitchSong(source)
+        recording.selectStart(at: 5, lyrics: lyrics, duration: 12)
+        try playback.load(source, vocalsURL: source)
+        playback.seek(to: 5)
+        let stage = KaraokePlayerView(result: result, lyrics: lyrics, playback: playback, recording: recording,
+            startSinging: {}, togglePlayback: {}, close: {}).defaultAppStorage(defaults).preferredColorScheme(.dark)
+        try await attach(stage, name: "Lyric-selected-compact", size: CGSize(width: 375, height: 667))
+        await recording.start(result: result, lyrics: lyrics, playback: playback)
+        for (time, digit) in [(2.0, 3), (3.0, 2), (4.0, 1)] {
+            capture.currentTime = time
+            recording.refresh()
+            XCTAssertEqual(recording.countdown, digit)
+            try await attach(stage, name: "Lyric-countdown-\(digit)", size: CGSize(width: 375, height: 667))
+        }
+        try await attach(stage.environment(\.dynamicTypeSize, .accessibility2),
+                         name: "Lyric-countdown-large-text", size: CGSize(width: 375, height: 667))
+        capture.currentTime = 5.6
+        recording.refresh()
+        XCTAssertNil(recording.countdown)
+        recording.finish()
+        for _ in 0..<300 {
+            if recording.state != .mixing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(try XCTUnwrap(recording.completedPerformance).duration, 12, accuracy: 0.001)
+    }
+
+    @MainActor
     func testRenderWirelessHeadphoneGuidanceOnCompactAndLargeTextStage() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

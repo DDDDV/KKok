@@ -22,6 +22,8 @@ final class SingingRecordingController: ObservableObject {
     @Published private(set) var preparationMessage = String(localized: "Preparing the microphone…")
     @Published private(set) var activeScoringSettings = PitchScoringSettings()
     @Published private(set) var audioRoute: SingingAudioRoute
+    @Published private(set) var selectedStartTime: Double?
+    @Published private(set) var countdown: Int?
 
     let store: PerformanceStore
     var isBusy: Bool { state != .idle }
@@ -42,6 +44,12 @@ final class SingingRecordingController: ObservableObject {
     private var preparationTask: Task<(PendingPerformance, PitchReference?, String?), Error>?
     private let readAudioRoute: () -> SingingAudioRoute
     private var recordingRoute: SingingAudioRoute?
+    private var activeStart = SingingStart.beginning
+
+    func selectStart(at time: Double?, lyrics: TimedLyrics?, duration: Double) {
+        guard !isBusy else { return }
+        selectedStartTime = time.flatMap { SingingStart.selection(at: $0, lyrics: lyrics, duration: duration) }
+    }
 
     init(
         store: PerformanceStore = PerformanceStore(),
@@ -109,6 +117,9 @@ final class SingingRecordingController: ObservableObject {
         guard state == .idle else { return }
         // Freeze one configuration for preparation, capture, final analysis and recovery.
         let scoringSettings = readScoringSettings()
+        let start = selectedStartTime.map { SingingStart(vocalTime: $0, hasCountdown: true) } ?? .beginning
+        activeStart = start
+        countdown = nil
         activeScoringSettings = scoringSettings
         playback.stop()
         state = .preparing
@@ -124,7 +135,7 @@ final class SingingRecordingController: ObservableObject {
         lastScoreTime = -1
         completedPerformance = nil
         preparationMessage = String(localized: "Preparing the microphone…")
-        currentTime = 0
+        currentTime = start.clockOrigin
         duration = result.duration
         let id = UUID()
         startID = id
@@ -145,7 +156,10 @@ final class SingingRecordingController: ObservableObject {
                 var reference: PitchReference?
                 var reason: String?
                 if scoringSettings.isEnabled {
-                    do { reference = try analyzeReference(result.vocalsURL) }
+                    do {
+                        let full = try analyzeReference(result.vocalsURL)
+                        reference = PitchReference(duration: full.duration, frames: full.frames.filter { $0.time >= start.vocalTime })
+                    }
                     catch is CancellationError { throw CancellationError() }
                     catch { reason = String(localized: "Reference melody analysis failed. This performance will be recorded without a score.") }
                 }
@@ -174,7 +188,7 @@ final class SingingRecordingController: ObservableObject {
             capture.setPitchAnalysisEnabled(scoringSettings.isEnabled)
             try capture.start(
                 accompanimentURL: store.accompanimentURL(draft.id), vocalsURL: result.vocalsURL,
-                vocalsEnabled: vocalsEnabled, microphoneURL: store.microphoneURL(draft.id)
+                vocalsEnabled: vocalsEnabled, microphoneURL: store.microphoneURL(draft.id), start: start
             )
             audioRoute = readAudioRoute()
             recordingRoute = audioRoute
@@ -184,6 +198,7 @@ final class SingingRecordingController: ObservableObject {
                                                                scoringMode: scoringSettings.mode), for: draft.id)
             }
             state = .recording
+            countdown = start.countdown(at: currentTime)
             startID = nil
             duration = capture.duration
             UIApplication.shared.isIdleTimerDisabled = true
@@ -222,6 +237,7 @@ final class SingingRecordingController: ObservableObject {
     func selectPitchSong(_ vocalsURL: URL) {
         guard !isBusy, referenceSource != vocalsURL else { return }
         referenceSource = vocalsURL
+        selectedStartTime = nil
         pitchReference = nil
         pitchTrace = []
         livePitchReport = nil
@@ -241,12 +257,24 @@ final class SingingRecordingController: ObservableObject {
 
     func finish(notice: String? = nil) {
         guard state == .recording else { return }
+        let canceledLeadIn = activeStart.hasCountdown && capture.currentTime <= activeStart.vocalTime
         state = .mixing // Ignore duplicate completion, route and user-stop events.
         recordingRoute = nil
         currentTime = min(max(capture.currentTime, 0), duration)
         timer?.invalidate()
         timer = nil
         capture.stop() // Finalize the microphone WAV header before reading it.
+        countdown = nil
+        if canceledLeadIn {
+            // No sung audio exists yet, so cancel rather than create a silent performance.
+            if let pending { try? store.remove(pending.id) }
+            pending = nil
+            level = 0
+            self.notice = notice
+            UIApplication.shared.isIdleTimerDisabled = false
+            state = .idle
+            return
+        }
         updatePitch()
         if activeScoringSettings.isEnabled, let failure = capture.captureFailure, let pending {
             scoringMessage = failure
@@ -373,10 +401,11 @@ final class SingingRecordingController: ObservableObject {
         }
     }
 
-    private func refresh() {
+    func refresh() {
         guard state == .recording else { return }
-        currentTime = min(max(capture.currentTime, 0), duration)
-        level = capture.level
+        currentTime = min(max(capture.currentTime, activeStart.clockOrigin), duration)
+        countdown = activeStart.countdown(at: currentTime)
+        level = countdown == nil ? capture.level : 0
         updatePitch()
         if let failure = capture.captureFailure { finish(notice: failure) }
     }

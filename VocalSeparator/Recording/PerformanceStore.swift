@@ -1,4 +1,4 @@
-import Foundation
+import AVFoundation
 
 struct SingingPerformance: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
@@ -126,10 +126,12 @@ struct PerformanceStore: Sendable {
             mode = context.mode
             let reference = context.reference ?? PitchReference(duration: duration, frames: [])
             var scorer = PitchScorer(reference: reference, mode: context.mode)
+            let microphone = try AVAudioFile(forReading: microphoneURL(pending.id))
+            let recordedEnd = min(duration, Double(microphone.length) / microphone.processingFormat.sampleRate)
             if context.unavailableReason == nil, context.reference != nil {
                 scorer.append(try PitchFileAnalyzer.analyze(microphoneURL(pending.id)).frames)
             }
-            return scorer.report(until: duration, lyrics: pending.lyrics, unavailableReason: context.unavailableReason)
+            return scorer.report(until: recordedEnd, lyrics: pending.lyrics, unavailableReason: context.unavailableReason)
         } catch {
             // An analysis error must never discard an otherwise playable recording.
             return PitchScorer(reference: PitchReference(duration: duration, frames: []), mode: mode)

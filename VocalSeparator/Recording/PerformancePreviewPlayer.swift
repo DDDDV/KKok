@@ -36,8 +36,7 @@ final class PerformancePreviewPlayer: AudioPlaybackTransport {
         try settings.validate()
         microphoneFile = try AVAudioFile(forReading: microphoneURL)
         accompanimentFile = try AVAudioFile(forReading: accompanimentURL)
-        duration = min(Double(microphoneFile.length) / microphoneFile.processingFormat.sampleRate,
-                       Double(accompanimentFile.length) / accompanimentFile.processingFormat.sampleRate)
+        duration = Double(accompanimentFile.length) / accompanimentFile.processingFormat.sampleRate
         guard duration.isFinite, duration >= 0.2 else { throw SingingError.tooShort }
         self.settings = settings
         let format = AVAudioFormat(standardFormatWithSampleRate: HTDemucsContract.sampleRate, channels: 2)!
@@ -143,9 +142,10 @@ final class PerformancePreviewPlayer: AudioPlaybackTransport {
     private func schedule(_ node: AVAudioPlayerNode, file: AVAudioFile,
                           completion: (@Sendable (AVAudioPlayerNodeCompletionCallbackType) -> Void)? = nil) {
         let rate = file.processingFormat.sampleRate
-        let start = min(AVAudioFramePosition(offset * rate), file.length - 1)
+        let start = AVAudioFramePosition(offset * rate)
         let end = min(AVAudioFramePosition(duration * rate), file.length)
-        node.scheduleSegment(file, startingFrame: start, frameCount: AVAudioFrameCount(max(1, end - start)),
+        guard start < end else { return }
+        node.scheduleSegment(file, startingFrame: start, frameCount: AVAudioFrameCount(end - start),
                              at: nil, completionCallbackType: .dataPlayedBack, completionHandler: completion)
     }
 }

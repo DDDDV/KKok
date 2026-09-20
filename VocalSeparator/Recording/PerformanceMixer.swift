@@ -1,7 +1,7 @@
 import AVFoundation
 
-/// Bounded-memory offline mix. Both sources start at the scheduled recording
-/// origin; output ends at the shorter of the microphone and accompaniment.
+/// Bounded-memory offline mix on the original song clock. The microphone WAV
+/// includes leading silence; unrecorded music after it remains in the export.
 struct PerformanceMixer {
     func mix(
         microphoneURL: URL, accompanimentURL: URL, outputURL: URL,
@@ -21,8 +21,8 @@ struct PerformanceMixer {
         let preparer = AudioInputPreparer()
         let voice = try preparer.prepare(sourceURL: microphoneURL, destinationURL: voiceURL)
         let backing = try preparer.prepare(sourceURL: accompanimentURL, destinationURL: backingURL)
-        let frames = min(voice.totalFrames, backing.totalFrames)
-        guard frames >= Int(0.2 * HTDemucsContract.sampleRate) else { throw SingingError.tooShort }
+        let frames = backing.totalFrames
+        guard min(voice.totalFrames, frames) >= Int(0.2 * HTDemucsContract.sampleRate) else { throw SingingError.tooShort }
         let processedVoice: URL
         if settings.effect != .natural, settings.vocalVolume > 0 {
             try applyReverb(source: voiceURL, destination: effectedURL, frames: frames, effect: settings.effect)
@@ -97,10 +97,21 @@ struct PerformanceMixer {
         while remaining > 0 {
             try Task.checkCancellation()
             let count = AVAudioFrameCount(min(8_192, remaining))
-            try vocals.read(into: voiceBuffer, frameCount: count)
+            let voiceCount = AVAudioFrameCount(min(Int64(count), vocals.length - vocals.framePosition))
+            voiceBuffer.frameLength = count
+            for channel in 0..<2 {
+                voiceBuffer.floatChannelData![channel].update(repeating: 0, count: Int(count))
+            }
+            if voiceCount > 0 {
+                try vocals.read(into: voiceBuffer, frameCount: voiceCount)
+                guard voiceBuffer.frameLength == voiceCount else {
+                    throw AudioPipelineError.shortRead(expected: Int(voiceCount), actual: Int(voiceBuffer.frameLength))
+                }
+            }
+            voiceBuffer.frameLength = count
             try music.read(into: musicBuffer, frameCount: count)
-            guard voiceBuffer.frameLength == count, musicBuffer.frameLength == count else {
-                throw AudioPipelineError.shortRead(expected: Int(count), actual: Int(min(voiceBuffer.frameLength, musicBuffer.frameLength)))
+            guard musicBuffer.frameLength == count else {
+                throw AudioPipelineError.shortRead(expected: Int(count), actual: Int(musicBuffer.frameLength))
             }
             for channel in 0..<2 {
                 let vocal = voiceBuffer.floatChannelData![channel]

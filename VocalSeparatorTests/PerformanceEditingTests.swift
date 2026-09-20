@@ -46,6 +46,24 @@ final class PerformancePreviewAudioTests: XCTestCase {
         return samples
     }
 
+    func testPreviewRetainsFullBackingAndCanSeekPastTheRecordedVoice() throws {
+        let voice = root.appendingPathComponent("partial.wav")
+        let backing = root.appendingPathComponent("full.wav")
+        try SingingFixtures.write(voice, seconds: 1, channels: 2) { _, _ in 0.2 }
+        try SingingFixtures.write(backing, seconds: 4, channels: 2) { _, _ in 0.1 }
+        let player = try PerformancePreviewPlayer(microphoneURL: voice, accompanimentURL: backing, settings: .init())
+        defer { player.stop() }
+        try player.engine.enableManualRenderingMode(.offline,
+            format: AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!, maximumFrameCount: 4_096)
+        XCTAssertEqual(player.duration, 4)
+        player.seek(to: 2)
+        XCTAssertTrue(player.play())
+        _ = try render(player, frames: 8_192)
+        let samples = try render(player)
+        XCTAssertTrue(samples[0].allSatisfy { abs($0 - 0.07) < 0.002 })
+        XCTAssertTrue(samples[1].allSatisfy { abs($0 - 0.07) < 0.002 })
+    }
+
     func testLiveVolumeEditsChangePCMAtSameClockAndLeaveBackingUnchanged() throws {
         let player = try player(voice: { _, _ in 0.2 }, backing: { channel, _ in channel == 0 ? 0.1 : -0.1 })
         defer { player.stop() }
@@ -162,9 +180,11 @@ final class PerformanceEditingTests: XCTestCase {
             _ = try PerformanceMixer().mix(microphoneURL: voice, accompanimentURL: backing, outputURL: output,
                                           settings: PerformanceMixSettings(vocalVolume: volume))
             let samples = try SingingFixtures.read(output)
-            XCTAssertEqual(samples[0].count, 22_050)
+            XCTAssertEqual(samples[0].count, 35_280)
             XCTAssertEqual(samples[0][100], Float(0.2 * volume + 0.07), accuracy: 0.0001)
             XCTAssertEqual(samples[1][100], Float(0.2 * volume - 0.07), accuracy: 0.0001)
+            XCTAssertEqual(samples[0][30_000], 0.07, accuracy: 0.0001)
+            XCTAssertEqual(samples[1][30_000], -0.07, accuracy: 0.0001)
         }
     }
 

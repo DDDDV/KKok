@@ -164,6 +164,59 @@ final class PitchAudioIntegrationTests: XCTestCase {
         XCTAssertTrue(worker.drainPitchFrames().isEmpty)
     }
 
+    func testSelectedStartPadsDryAudioAndOffsetsLivePitchWithoutScoringTheIntro() throws {
+        for start in [5.0, 5.137] {
+            let url = root.appendingPathComponent("selected.wav")
+            let worker = try SingingCaptureWorker(url: url, sampleRate: 48_000, duration: 8, startTime: start)
+            for offset in stride(from: -4_800, to: 96_000, by: 960) {
+                try worker.consume((offset..<(offset + 960)).map {
+                    Float(0.2 * sin(2 * Double.pi * 440 * Double($0) / 48_000))
+                }, at: offset)
+            }
+            worker.finish()
+            let live = worker.drainPitchFrames()
+            let offline = try PitchFileAnalyzer.analyze(url)
+            XCTAssertEqual(offline.duration, start + 2, accuracy: 0.001)
+            XCTAssertGreaterThanOrEqual(live.first?.time ?? 0, start)
+            XCTAssertLessThan(live.first?.time ?? 10, start + 0.02)
+            XCTAssertGreaterThan(live.count, 90)
+            var scorer = PitchScorer(reference: PitchReference(duration: 8, frames: offline.frames.filter { $0.time >= start }))
+            scorer.append(live)
+            // The controller compares live scoring only through the latest completed window.
+            // Offline saving re-analyzes the finalized WAV, including the converter's tail.
+            let analyzedEnd = try XCTUnwrap(live.last).time
+            XCTAssertEqual(scorer.report(until: analyzedEnd, lyrics: nil).score, 100, "Selected start: \(start)")
+            var finalScorer = PitchScorer(reference: PitchReference(duration: 8, frames: offline.frames.filter { $0.time >= start }))
+            finalScorer.append(offline.frames)
+            XCTAssertEqual(finalScorer.report(until: start + 2, lyrics: nil).score, 100)
+            let samples = try SingingFixtures.read(url)[0]
+            XCTAssertTrue(samples.prefix(Int((start * 48_000).rounded())).allSatisfy { $0 == 0 })
+            XCTAssertGreaterThan(samples.suffix(96_000).map { abs($0) }.max() ?? 0, 0.19)
+        }
+    }
+
+    @MainActor
+    func testSelectedGuideStartSchedulesBothStemsFromTheirOwnSampleRates() throws {
+        let backing = root.appendingPathComponent("seek-backing.wav")
+        let guide = root.appendingPathComponent("seek-guide.wav")
+        try SingingFixtures.write(backing, seconds: 6, channels: 2) { _, index in index >= 2 * 44_100 ? 0.1 : 0.8 }
+        try SingingFixtures.write(guide, seconds: 6, rate: 48_000, channels: 2) { _, index in index >= 2 * 48_000 ? 0.2 : 0.8 }
+        let engine = AVAudioEngine()
+        let graph = try SingingGuideGraph(engine: engine, accompanimentURL: backing, vocalsURL: guide)
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2))
+        try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 4_096)
+        defer { graph.stop(); engine.stop() }
+        try engine.start()
+        graph.setVocalsEnabled(true)
+        // A lyric at 5 seconds starts its backing at 2 seconds.
+        graph.play(at: AVAudioTime(sampleTime: 0, atRate: 44_100), from: 2)
+        let output = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4_096))
+        for _ in 0..<3 { XCTAssertEqual(try engine.renderOffline(4_096, to: output), .success) }
+        XCTAssertEqual(output.floatChannelData![0][3_000], 0.3, accuracy: 0.002)
+        XCTAssertEqual(output.floatChannelData![1][3_000], 0.3, accuracy: 0.002)
+        XCTAssertEqual(graph.duration, 6)
+    }
+
     func testQueuedTapCopiesPCMAndDrainsBeforeWAVIsRead() throws {
         let url = root.appendingPathComponent("queued.wav")
         let worker = try SingingCaptureWorker(url: url, sampleRate: 48_000, duration: 0.1)
@@ -362,7 +415,7 @@ final class PitchFixtureCapture: KaraokeCapturing {
     var microphoneFrequency: Double = 440
     init(frames: [PitchFrame]) { self.frames = frames }
     func drainPitchFrames() -> [PitchFrame] { defer { pendingFrames = [] }; return pendingFrames }
-    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL) throws {
+    func start(accompanimentURL: URL, vocalsURL: URL, vocalsEnabled: Bool, microphoneURL: URL, start: SingingStart) throws {
         startCount += 1
         pendingFrames = pitchAnalysisEnabled ? frames : []
         let frequency = microphoneFrequency
