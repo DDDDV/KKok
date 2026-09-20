@@ -202,7 +202,7 @@ final class SeparationViewModel: ObservableObject {
         handleFilesImport(importResult.map { [$0] })
     }
 
-    func handleFilesImport(_ importResult: Result<[URL], Error>) {
+    func handleFilesImport(_ importResult: Result<[URL], Error>, onSongsImported: (() -> Void)? = nil) {
         guard canManageLibrary else { return }
         switch importResult {
         case .failure(let error):
@@ -267,6 +267,9 @@ final class SeparationViewModel: ObservableObject {
                         importedLyrics = lyrics
                     }
                     statusText = result == nil ? String(localized: "Imported. Tap to start separation.") : String(localized: "Lyrics updated. You can start singing.")
+                    isImporting = false
+                    // Present details only once the saved song is ready for preview and separation.
+                    if !additions.isEmpty { onSongsImported?() }
                 } catch {
                     present(error: error, title: String(localized: "Import Failed"))
                     if let selectedAudio {
@@ -274,8 +277,8 @@ final class SeparationViewModel: ObservableObject {
                     } else {
                         statusText = String(localized: "Choose an audio file that iOS can decode")
                     }
+                    isImporting = false
                 }
-                isImporting = false
             }
         }
     }

@@ -49,7 +49,11 @@ struct ContentView: View {
         .tint(StudioTheme.accent)
         .preferredColorScheme(.light)
         .fileImporter(isPresented: $viewModel.isImporterPresented, allowedContentTypes: [.item],
-                      allowsMultipleSelection: true, onCompletion: viewModel.handleFilesImport)
+                      allowsMultipleSelection: true) { result in
+            viewModel.handleFilesImport(result) {
+                isShowingSong = true
+            }
+        }
         .alert(item: Binding(get: { isShowingSong ? nil : viewModel.alert }, set: { viewModel.alert = $0 })) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(String(localized: "OK"))))
         }

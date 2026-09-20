@@ -18,8 +18,16 @@ final class SongLibraryTests: XCTestCase {
 
     func testBatchImportSurvivesRelaunchAndSwitchingSongs() async throws {
         let model = makeModel()
-        model.handleFilesImport(.success([try AudioTestFixtures.url(), try AudioTestFixtures.url("tone", "flac")]))
+        var detailRequests = 0
+        model.handleFilesImport(.success([try AudioTestFixtures.url(), try AudioTestFixtures.url("tone", "flac")])) {
+            detailRequests += 1
+            XCTAssertFalse(model.isImporting)
+            XCTAssertTrue(model.canStart)
+            XCTAssertEqual(model.selectedSongID, model.songs.first?.id)
+            XCTAssertEqual(try? Set(self.library.load().map(\.id)), Set(model.songs.map(\.id)))
+        }
         try await wait(model)
+        XCTAssertEqual(detailRequests, 1)
         XCTAssertEqual(model.songs.count, 2)
         let first = try XCTUnwrap(model.songs.first)
         let second = model.songs[1]
@@ -30,6 +38,49 @@ final class SongLibraryTests: XCTestCase {
         XCTAssertEqual(Set(relaunched.songs.map(\.id)), Set(model.songs.map(\.id)))
         relaunched.selectSong(first)
         XCTAssertEqual(relaunched.selectedSongID, first.id)
+    }
+
+    func testImportedSongIsReadyToPreviewAndSeparateWhenDetailsOpen() async throws {
+        let model = makeModel()
+        defer { model.playback.stop() }
+        var detailRequests = 0
+        model.handleFilesImport(.success([try AudioTestFixtures.url()])) {
+            detailRequests += 1
+            XCTAssertFalse(model.isProcessing)
+            XCTAssertNil(model.result)
+            guard let audio = model.selectedAudio else {
+                XCTFail("The song must be selected before opening its details")
+                return
+            }
+            model.togglePlayback(audio.url)
+            XCTAssertEqual(model.playback.playingURL, audio.url)
+            model.startSeparation()
+            XCTAssertTrue(model.isSeparating)
+            XCTAssertFalse(model.playback.isPlaying)
+        }
+        try await wait(model)
+        XCTAssertEqual(detailRequests, 1)
+        XCTAssertNotNil(model.result)
+        XCTAssertNil(model.alert)
+    }
+
+    func testLyricsOnlyCancelledAndEmptyImportsDoNotOpenSongDetails() async throws {
+        let model = makeModel()
+        model.handleImport(.success(try AudioTestFixtures.url()))
+        try await wait(model)
+        let selectedID = model.selectedSongID
+        let lyric = root.appendingPathComponent("song.lrc")
+        try Data("[00:00]配套歌词".utf8).write(to: lyric)
+        model.isSelectingLyrics = true
+        model.handleFilesImport(.success([lyric])) { XCTFail("Lyrics updates must keep the current presentation") }
+        try await wait(model)
+        XCTAssertEqual(model.importedLyrics?.lyrics.lines.first?.text, "配套歌词")
+        model.handleFilesImport(.failure(CocoaError(.userCancelled))) { XCTFail("Cancelled imports must not open details") }
+        model.handleFilesImport(.success([])) { XCTFail("Empty imports must not open details") }
+        XCTAssertEqual(model.selectedSongID, selectedID)
+        XCTAssertEqual(model.songs.count, 1)
+        XCTAssertNil(model.alert)
+        XCTAssertFalse(model.isImporting)
     }
 
     func testSeparatedSongsLyricsAndTranscriptSurviveRelaunchAndRename() async throws {
@@ -96,12 +147,28 @@ final class SongLibraryTests: XCTestCase {
         let originalAudio = model.selectedAudio
         let broken = root.appendingPathComponent("broken.wav")
         try Data("invalid audio".utf8).write(to: broken)
-        model.handleFilesImport(.success([try AudioTestFixtures.url("tone", "flac"), broken]))
+        model.handleFilesImport(.success([try AudioTestFixtures.url("tone", "flac"), broken])) {
+            XCTFail("A failed batch must not open the previously selected song")
+        }
         try await wait(model)
         XCTAssertEqual(model.songs, original)
         XCTAssertEqual(model.selectedAudio, originalAudio)
         XCTAssertNotNil(model.alert)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("Imports").path).count, 1)
+    }
+
+    func testFailedImportSaveDoesNotOpenSongDetails() async throws {
+        let model = makeModel()
+        let manifest = root.appendingPathComponent("library.json")
+        try FileManager.default.createDirectory(at: manifest, withIntermediateDirectories: true)
+        model.handleFilesImport(.success([try AudioTestFixtures.url()])) {
+            XCTFail("Details must not open before the library is saved successfully")
+        }
+        try await wait(model)
+        XCTAssertTrue(model.songs.isEmpty)
+        XCTAssertNil(model.selectedAudio)
+        XCTAssertNotNil(model.alert)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("Imports").path).count, 0)
     }
 
     func testMovedContainerResolvesRelativeMediaPaths() async throws {
