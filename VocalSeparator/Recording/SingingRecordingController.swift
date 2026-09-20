@@ -104,7 +104,8 @@ final class SingingRecordingController: ObservableObject {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
     }
 
-    func start(result: SeparationResult, lyrics: TimedLyrics?, playback: AudioPlaybackController) async {
+    func start(result: SeparationResult, lyrics: TimedLyrics?, playback: AudioPlaybackController,
+               sourceSongID: UUID? = nil, artworkURL: URL? = nil) async {
         guard state == .idle else { return }
         // Freeze one configuration for preparation, capture, final analysis and recovery.
         let scoringSettings = readScoringSettings()
@@ -154,7 +155,8 @@ final class SingingRecordingController: ObservableObject {
                     lyrics: lyrics, accompanimentURL: result.accompanimentURL,
                     scoring: scoringSettings.isEnabled
                         ? PitchScoringContext(reference: reference, unavailableReason: String(localized: "Recording is not ready. No score yet."),
-                                              scoringMode: scoringSettings.mode) : nil
+                                              scoringMode: scoringSettings.mode) : nil,
+                    sourceSongID: sourceSongID, artworkURL: artworkURL
                 )
                 return (draft, reference, reason)
             }
@@ -287,6 +289,33 @@ final class SingingRecordingController: ObservableObject {
         if let index = performances.firstIndex(where: { $0.id == performance.id }) {
             performances[index] = performance
         }
+    }
+
+    func restoreArtwork(from songs: [LibrarySong], library: SongLibraryStore) async {
+        let store = store
+        let missing = performances.filter { store.artworkURL(for: $0) == nil }
+        guard !missing.isEmpty else { return }
+        let worker = Task.detached(priority: .utility) {
+            var recovered: [UUID: Data] = [:]
+            for performance in missing {
+                guard !Task.isCancelled else { break }
+                recovered[performance.id] = store.recoverArtwork(for: performance, songs: songs, library: library)
+            }
+            return recovered
+        }
+        let recovered = await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+        guard !Task.isCancelled else { return }
+        var changed = false
+        for performance in performances where store.artworkURL(for: performance) == nil {
+            if let data = recovered[performance.id], (try? store.saveArtwork(data, for: performance.id)) != nil {
+                changed = true
+            }
+        }
+        if changed { objectWillChange.send() }
     }
 
     func rename(_ performance: SingingPerformance, title: String) {

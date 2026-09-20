@@ -217,6 +217,177 @@ final class SongMetadataTests: XCTestCase {
         XCTAssertThrowsError(try store.save([song]))
     }
 
+    func testSingingInheritsExtractedCoverAndKeepsItAfterSourceDeletionEditsAndContainerMove() async throws {
+        let (library, song) = try await artworkSong()
+        try library.save([song])
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let recording = SingingRecordingController(store: store, capture: FixtureCapture(), requestPermission: { true },
+                                                    readScoringSettings: { .init(isEnabled: false) })
+        let model = SeparationViewModel(recording: recording, library: library)
+        model.selectSong(song)
+        model.startSinging()
+        for _ in 0..<200 {
+            if recording.state == .recording { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(recording.state, .recording)
+        recording.finish()
+        for _ in 0..<200 {
+            if recording.state != .mixing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let take = try XCTUnwrap(recording.completedPerformance)
+        XCTAssertEqual(take.sourceSongID, song.id)
+        let cover = try XCTUnwrap(store.artworkURL(for: take))
+        let data = try Data(contentsOf: cover)
+        XCTAssertEqual(try XCTUnwrap(UIImage(data: data)).size, CGSize(width: 512, height: 256))
+        XCTAssertNotEqual(cover, library.artworkURL(for: song))
+        model.deleteSong(song, separationOnly: false)
+        XCTAssertTrue(model.songs.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(library.artworkURL(for: song)).path))
+        let renamed = try store.rename(take, title: "A renamed recording")
+        let render = try store.render(renamed, settings: .init(vocalVolume: 0.5), to: root.appendingPathComponent("edit.wav"))
+        let edited = try store.save(render, replacing: renamed)
+        XCTAssertEqual(edited.sourceSongID, song.id)
+        let moved = root.appendingPathComponent("MovedTakes")
+        try FileManager.default.moveItem(at: store.root, to: moved)
+        let reopened = PerformanceStore(root: moved)
+        XCTAssertEqual(try reopened.performances(), [edited])
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(reopened.artworkURL(for: edited))), data)
+        try reopened.remove(edited.id)
+        XCTAssertThrowsError(try reopened.saveArtwork(data, for: edited.id))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.directory(edited.id).path))
+    }
+
+    func testPendingRecoveryPreservesCoverWithoutTheSourceLibrary() async throws {
+        let (library, song) = try await artworkSong()
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let draft = try store.prepare(title: song.title, lyrics: nil,
+                                      accompanimentURL: XCTUnwrap(library.result(for: song)).accompanimentURL,
+                                      sourceSongID: song.id, artworkURL: library.artworkURL(for: song))
+        try SingingFixtures.write(store.microphoneURL(draft.id), seconds: 0.5) { _, _ in 0.1 }
+        try FileManager.default.removeItem(at: library.root)
+        let reopened = PerformanceStore(root: store.root)
+        let recovered = try XCTUnwrap(reopened.recoverPending())
+        XCTAssertEqual(recovered.sourceSongID, song.id)
+        let take = try reopened.finish(recovered)
+        XCTAssertEqual(take.sourceSongID, song.id)
+        XCTAssertNotNil(UIImage(contentsOfFile: try XCTUnwrap(reopened.artworkURL(for: take)).path))
+    }
+
+    func testLegacyCoverRecoveryMatchesBackingBytesDespiteRenamesAndDuplicateTitles() async throws {
+        let (library, source) = try await artworkSong(title: "Same title", level: 0.1)
+        let (_, other) = try await artworkSong(title: "Same title", level: 0.2)
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let take = try legacyTake(store: store, backing: XCTUnwrap(library.result(for: source)).accompanimentURL)
+        let manifest = store.directory(take.id).appendingPathComponent("performance.json")
+        let before = try Data(contentsOf: manifest)
+        let manifestObject = try XCTUnwrap(JSONSerialization.jsonObject(with: before) as? [String: Any])
+        XCTAssertNil(manifestObject["sourceSongID"])
+        let recording = SingingRecordingController(store: store)
+        var refreshes = 0
+        let subscription = recording.objectWillChange.sink { refreshes += 1 }
+        defer { subscription.cancel() }
+        await recording.restoreArtwork(from: [other, source], library: library)
+        let cover = try XCTUnwrap(store.artworkURL(for: take))
+        XCTAssertNotNil(UIImage(contentsOfFile: cover.path))
+        XCTAssertGreaterThan(refreshes, 0, "The visible recordings list must refresh after recovery")
+        XCTAssertEqual(try Data(contentsOf: manifest), before, "Recovery must not invalidate an open audio edit")
+        let data = try Data(contentsOf: cover)
+        await recording.restoreArtwork(from: [other], library: library)
+        XCTAssertEqual(try Data(contentsOf: cover), data)
+        XCTAssertEqual(try PerformanceStore(root: store.root).performances(), [take])
+    }
+
+    func testLegacyRecoverySkipsAmbiguousMissingAndNonmatchingBackingTracks() async throws {
+        let (library, first) = try await artworkSong()
+        let (_, duplicate) = try await artworkSong()
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let backing = try XCTUnwrap(library.result(for: first)).accompanimentURL
+        let take = try legacyTake(store: store, backing: backing)
+        XCTAssertTrue(FileManager.default.contentsEqual(atPath: backing.path,
+            andPath: try XCTUnwrap(library.result(for: duplicate)).accompanimentURL.path))
+        let recording = SingingRecordingController(store: store)
+        await recording.restoreArtwork(from: [first, duplicate], library: library)
+        XCTAssertNil(store.artworkURL(for: take))
+        let (_, different) = try await artworkSong(level: 0.3)
+        await recording.restoreArtwork(from: [different], library: library)
+        XCTAssertNil(store.artworkURL(for: take))
+        try FileManager.default.removeItem(at: store.accompanimentURL(take.id))
+        await recording.restoreArtwork(from: [first], library: library)
+        XCTAssertNil(store.artworkURL(for: take))
+        XCTAssertEqual(try store.performances(), [take])
+    }
+
+    func testSourceIdentityRecoversMissingCoverWithoutBackingAndNeverFallsBackToAnotherSong() async throws {
+        let (library, source) = try await artworkSong()
+        let (_, other) = try await artworkSong()
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let draft = try store.prepare(title: "Renamed take", lyrics: nil,
+                                      accompanimentURL: XCTUnwrap(library.result(for: source)).accompanimentURL,
+                                      sourceSongID: source.id)
+        try SingingFixtures.write(store.microphoneURL(draft.id), seconds: 0.5) { _, _ in 0.1 }
+        let take = try store.finish(draft)
+        let recording = SingingRecordingController(store: store)
+        await recording.restoreArtwork(from: [other], library: library)
+        XCTAssertNil(store.artworkURL(for: take))
+        try FileManager.default.removeItem(at: store.accompanimentURL(take.id))
+        var renamedSource = source
+        renamedSource.title = "Renamed original"
+        renamedSource.separation = nil
+        await recording.restoreArtwork(from: [other, renamedSource], library: library)
+        XCTAssertNotNil(UIImage(contentsOfFile: try XCTUnwrap(store.artworkURL(for: take)).path))
+    }
+
+    func testMissingOrCorruptCoverDoesNotPreventSavingAudio() throws {
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let corrupt = root.appendingPathComponent("corrupt.jpg")
+        try Data("not an image".utf8).write(to: corrupt)
+        for url in [nil, root.appendingPathComponent("missing.jpg"), corrupt] as [URL?] {
+            let draft = try store.prepare(title: "No cover", lyrics: nil, accompanimentURL: AudioTestFixtures.url(), artworkURL: url)
+            try SingingFixtures.write(store.microphoneURL(draft.id), seconds: 0.5) { _, _ in 0.1 }
+            let take = try store.finish(draft)
+            XCTAssertNil(store.artworkURL(for: take))
+            XCTAssertNil(take.sourceSongID)
+            XCTAssertNoThrow(try AVAudioFile(forReading: store.mixURL(take)))
+        }
+        XCTAssertEqual(try store.performances().count, 3)
+    }
+
+    func testCancelledCoverRecoveryDoesNotPublishArtwork() async throws {
+        let (library, song) = try await artworkSong()
+        let store = PerformanceStore(root: root.appendingPathComponent("Takes"))
+        let take = try legacyTake(store: store, backing: XCTUnwrap(library.result(for: song)).accompanimentURL)
+        let recording = SingingRecordingController(store: store)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await recording.restoreArtwork(from: [song], library: library)
+        }
+        await task.value
+        XCTAssertNil(store.artworkURL(for: take))
+    }
+
+    private func artworkSong(title: String = "Original song", level: Float = 0.1) async throws -> (SongLibraryStore, LibrarySong) {
+        let library = SongLibraryStore(root: root.appendingPathComponent("Library"))
+        let audio = try AudioImportStore.persist(makeMP3(lyrics: ""), root: library.root)
+        var song = try library.applying(await SongMetadataExtractor().extract(from: audio.url),
+                                        to: LibrarySong(audio: audio, lyrics: nil))
+        song.title = title
+        let folder = library.separationsDirectory.appendingPathComponent(song.id.uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let backing = folder.appendingPathComponent("backing.wav")
+        try SingingFixtures.write(backing, seconds: 1) { _, _ in level }
+        song.separation = SavedSeparation(SeparationResult(sourceName: title, vocalsURL: backing, accompanimentURL: backing, duration: 1))
+        return (library, song)
+    }
+
+    private func legacyTake(store: PerformanceStore, backing: URL) throws -> SingingPerformance {
+        let draft = try store.prepare(title: "A renamed legacy performance", lyrics: nil, accompanimentURL: backing)
+        XCTAssertNil(try store.recoverPending()?.sourceSongID)
+        try SingingFixtures.write(store.microphoneURL(draft.id), seconds: 0.5) { _, _ in 0.1 }
+        return try store.finish(draft)
+    }
+
     func testRenderScrapedCoverAndPlainLyricsStatus() async throws {
         let model = makeModel()
         model.handleImport(.success(try makeFLAC(lyrics: "这是没有时间轴的歌词\n可以阅读，不会伪造同步时间")))

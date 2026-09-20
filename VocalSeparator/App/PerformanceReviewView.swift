@@ -22,7 +22,8 @@ struct PerformanceReviewView: View {
                           systemImage: editor.hasChanges ? "slider.horizontal.3" : "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(StudioTheme.cream)
                     HStack(spacing: 16) {
-                        RecordArtwork(title: editor.performance.title, size: 76, isPerformance: true)
+                        RecordArtwork(title: editor.performance.title, size: 76, isPerformance: true,
+                                      artworkURL: editor.store.artworkURL(for: editor.performance))
                         VStack(alignment: .leading, spacing: 6) {
                             Text(editor.performance.title).font(.title3.bold())
                             Text(String(localized: "My Recordings · Includes backing track")).font(.caption).foregroundStyle(.secondary)

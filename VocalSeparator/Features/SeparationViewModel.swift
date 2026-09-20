@@ -403,8 +403,12 @@ final class SeparationViewModel: ObservableObject {
 
     func startSinging() {
         guard let result, !isImporting, !isProcessing, !recording.isBusy else { return }
+        let song = selectedSong
+        let artworkURL = song.flatMap { library.artworkURL(for: $0) }
+        let lyrics = importedLyrics?.lyrics
         Task {
-            await recording.start(result: result, lyrics: importedLyrics?.lyrics, playback: playback)
+            await recording.start(result: result, lyrics: lyrics, playback: playback,
+                                  sourceSongID: song?.id, artworkURL: artworkURL)
         }
     }
 

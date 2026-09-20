@@ -274,10 +274,17 @@ final class KaraokeViewRenderingTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let library = SongLibraryStore(root: root)
         let lyrics = ImportedLyrics(displayName: "晚风.lrc", lyrics: try LRCParser.parse("[00:00]让音乐陪在身旁\n[00:01]每一句都属于自己"))
+        let cover = UIGraphicsImageRenderer(size: CGSize(width: 128, height: 128)).image { context in
+            UIColor.systemRed.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 128, height: 128))
+            UIColor.systemYellow.setFill()
+            context.fill(CGRect(x: 64, y: 0, width: 64, height: 128))
+        }.pngData()
         var songs: [LibrarySong] = []
         for (index, title) in ["晚风里的旋律", "留给周末的歌", "月光来信", "慢慢喜欢这个世界"].enumerated() {
             let audio = try AudioImportStore.persist(AudioTestFixtures.url(), root: root)
             var song = LibrarySong(audio: audio, lyrics: index == 0 ? lyrics : nil)
+            song = try library.applying(ExtractedSongMetadata(artworkData: index == 0 ? cover : nil, didReadMetadata: true), to: song)
             song.title = title
             song.isFavorite = index == 0
             if index < 3 {
@@ -297,7 +304,8 @@ final class KaraokeViewRenderingTests: XCTestCase {
                                                     capture: FixtureCapture(), requestPermission: { true })
         let model = SeparationViewModel(recording: recording, library: library)
         model.selectSong(songs[0])
-        await recording.start(result: try XCTUnwrap(model.result), lyrics: lyrics.lyrics, playback: model.playback)
+        await recording.start(result: try XCTUnwrap(model.result), lyrics: lyrics.lyrics, playback: model.playback,
+                              sourceSongID: songs[0].id, artworkURL: library.artworkURL(for: songs[0]))
         recording.finish()
         for _ in 0..<200 {
             if recording.state != .mixing { break }
@@ -306,9 +314,13 @@ final class KaraokeViewRenderingTests: XCTestCase {
         XCTAssertEqual(model.songs.count, 4)
         XCTAssertEqual(model.separatedSongs.count, 3)
         XCTAssertEqual(model.recording.performances.count, 1)
+        let performance = try XCTUnwrap(recording.performances.first)
+        XCTAssertNotNil(recording.store.artworkURL(for: performance))
         try await attach(ContentView(viewModel: model, initialTab: .songs), name: "Studio-01-song-library")
         try await attach(ContentView(viewModel: model, initialTab: .accompaniments), name: "Studio-02-accompaniments")
         try await attach(ContentView(viewModel: model, initialTab: .performances), name: "Studio-03-performances")
+        try await attach(PerformanceReviewView(performance: performance, store: recording.store, playback: model.playback),
+                         name: "Studio-performance-review-cover", settlingTime: 1_000_000_000)
         try await attach(SongDetailView(viewModel: model, openStage: {}), name: "Studio-04-song-detail")
         try await attach(ContentView(viewModel: model).environment(\.dynamicTypeSize, .xxxLarge), name: "Studio-large-type-library")
         for (tab, name) in [(ContentView.LibraryTab.songs, "songs"), (.accompaniments, "accompaniments"), (.performances, "performances")] {
@@ -335,7 +347,8 @@ final class KaraokeViewRenderingTests: XCTestCase {
     }
 
     @MainActor
-    private func attach<V: View>(_ root: V, name: String, size: CGSize = CGSize(width: 393, height: 852)) async throws {
+    private func attach<V: View>(_ root: V, name: String, size: CGSize = CGSize(width: 393, height: 852),
+                                settlingTime: UInt64 = 300_000_000) async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(origin: .zero, size: size)
@@ -344,7 +357,8 @@ final class KaraokeViewRenderingTests: XCTestCase {
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
         host.view.frame = window.bounds
-        try await Task.sleep(nanoseconds: 300_000_000)
+        host.view.layoutIfNeeded()
+        try await Task.sleep(nanoseconds: settlingTime)
         host.view.layoutIfNeeded()
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))

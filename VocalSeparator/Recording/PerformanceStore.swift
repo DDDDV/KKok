@@ -10,6 +10,7 @@ struct SingingPerformance: Codable, Identifiable, Equatable, Sendable {
     // Optional so manifests written before editing was supported still decode.
     var mixSettings: PerformanceMixSettings? = nil
     var pitchScore: PitchScoreReport? = nil
+    var sourceSongID: UUID? = nil
     var settings: PerformanceMixSettings { mixSettings ?? PerformanceMixSettings() }
 }
 
@@ -26,6 +27,7 @@ struct PendingPerformance: Codable, Sendable {
     let title: String
     let createdAt: Date
     let lyrics: TimedLyrics?
+    var sourceSongID: UUID? = nil
 }
 
 struct PerformanceStore: Sendable {
@@ -43,13 +45,58 @@ struct PerformanceStore: Sendable {
         directory(performance.id).appendingPathComponent(performance.fileName)
     }
 
+    func artworkURL(for performance: SingingPerformance) -> URL? {
+        let url = directory(performance.id).appendingPathComponent("artwork.jpg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Artwork belongs to the take, so deleting the source song cannot remove it.
+    func saveArtwork(_ data: Data, for id: UUID) throws {
+        // Do not recreate a take deleted while artwork recovery was running.
+        try data.write(to: directory(id).appendingPathComponent("artwork.jpg"), options: .atomic)
+    }
+
+    private func readArtwork(from url: URL) -> Data? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: SongMetadataExtractor.maximumTagBytes + 1) else { return nil }
+        return SongMetadataExtractor.thumbnail(data)
+    }
+
+    /// Legacy takes have no source ID, but retain an exact copy of their backing track.
+    /// Only a unique byte-for-byte match is safe; titles can be renamed or duplicated.
+    func recoverArtwork(for performance: SingingPerformance, songs: [LibrarySong], library: SongLibraryStore) -> Data? {
+        guard artworkURL(for: performance) == nil, !Task.isCancelled else { return nil }
+        let matches: [LibrarySong]
+        if let sourceSongID = performance.sourceSongID {
+            matches = songs.filter { $0.id == sourceSongID }
+        } else {
+            let backing = accompanimentURL(performance.id)
+            guard let size = try? backing.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return nil }
+            matches = songs.filter { song in
+                guard !Task.isCancelled, let candidate = library.result(for: song)?.accompanimentURL,
+                      let candidateSize = try? candidate.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                      candidateSize == size else { return false }
+                return FileManager.default.contentsEqual(atPath: backing.path, andPath: candidate.path)
+            }
+        }
+        guard !Task.isCancelled, matches.count == 1,
+              let song = matches.first, let url = library.artworkURL(for: song) else { return nil }
+        return readArtwork(from: url)
+    }
+
     func prepare(title: String, lyrics: TimedLyrics?, accompanimentURL: URL,
-                 scoring: PitchScoringContext? = nil) throws -> PendingPerformance {
-        let pending = PendingPerformance(id: UUID(), title: title, createdAt: Date(), lyrics: lyrics)
+                 scoring: PitchScoringContext? = nil, sourceSongID: UUID? = nil,
+                 artworkURL: URL? = nil) throws -> PendingPerformance {
+        let pending = PendingPerformance(id: UUID(), title: title, createdAt: Date(), lyrics: lyrics, sourceSongID: sourceSongID)
         let folder = directory(pending.id)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try FileManager.default.copyItem(at: accompanimentURL, to: self.accompanimentURL(pending.id))
+            if let artworkURL, let data = readArtwork(from: artworkURL) {
+                // Optional metadata must not prevent saving a playable performance.
+                try? saveArtwork(data, for: pending.id)
+            }
             if let scoring { try saveScoringContext(scoring, for: pending.id) }
             try JSONEncoder().encode(pending).write(to: folder.appendingPathComponent("draft.json"), options: .atomic)
             return pending
@@ -99,7 +146,8 @@ struct PerformanceStore: Sendable {
         )
         let performance = SingingPerformance(
             id: pending.id, title: pending.title, createdAt: pending.createdAt,
-            duration: duration, lyrics: pending.lyrics, fileName: name, pitchScore: score(pending, duration: duration)
+            duration: duration, lyrics: pending.lyrics, fileName: name, pitchScore: score(pending, duration: duration),
+            sourceSongID: pending.sourceSongID
         )
         try JSONEncoder().encode(performance).write(
             to: directory(pending.id).appendingPathComponent("performance.json"), options: .atomic
@@ -149,7 +197,7 @@ struct PerformanceStore: Sendable {
         let updated = SingingPerformance(
             id: performance.id, title: performance.title, createdAt: performance.createdAt,
             duration: render.duration, lyrics: performance.lyrics, fileName: name, mixSettings: render.settings,
-            pitchScore: performance.pitchScore
+            pitchScore: performance.pitchScore, sourceSongID: performance.sourceSongID
         )
         let output = mixURL(updated)
         var committed = false

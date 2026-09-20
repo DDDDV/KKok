@@ -48,6 +48,9 @@ struct ContentView: View {
         }
         .tint(StudioTheme.accent)
         .preferredColorScheme(.light)
+        .task(id: viewModel.songs) {
+            await viewModel.recording.restoreArtwork(from: viewModel.songs, library: viewModel.library)
+        }
         .fileImporter(isPresented: $viewModel.isImporterPresented, allowedContentTypes: [.item],
                       allowsMultipleSelection: true) { result in
             viewModel.handleFilesImport(result) {
@@ -371,7 +374,8 @@ struct ContentView: View {
             Button { reviewingPerformance = performance } label: {
                 HStack(spacing: 12) {
                     if !dynamicTypeSize.isAccessibilitySize {
-                        RecordArtwork(title: performance.title, size: 52, isPerformance: true)
+                        RecordArtwork(title: performance.title, size: 52, isPerformance: true,
+                                      artworkURL: viewModel.recording.store.artworkURL(for: performance))
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text(performance.title).font(.headline).lineLimit(2)
